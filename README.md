@@ -6,7 +6,7 @@ support python2 and python3
 pip install https://github.com/botvs/backtest_python/archive/master.zip
 ## simple example
 
-```
+``` python
 '''backtest
 start: 2018-02-19 00:00:00
 end: 2018-03-22 12:00:00
@@ -14,8 +14,9 @@ period: 15m
 exchanges: [{"eid":"OKEX","currency":"LTC_BTC","balance":3,"stocks":0}]
 '''
 from botvs import *
-backtest = VCtx()
+task = VCtx(__doc__)
 print exchange.GetAccount()
+print exchange.GetTicker()
 ```
 ## documentation
 https://www.botvs.com/api
