@@ -2,9 +2,9 @@
 BotVS backtest engine python package
 
 support python2 and python3
-# install
+## install
 pip install https://github.com/botvs/backtest_python/archive/master.zip
-# simple example
+## simple example
 
         # -*- coding:utf-8 -*-
         from botvs import *
@@ -17,5 +17,5 @@ pip install https://github.com/botvs/backtest_python/archive/master.zip
                 '''
         backtest = VCtx(task)
         print exchange.GetAccount()
-# documentation
+## documentation
 https://www.botvs.com/api
