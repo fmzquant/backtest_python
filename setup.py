@@ -6,5 +6,5 @@ setup(name='botvs',
       author='Zero',
       author_email='hi@botvs.com',
       url='https://www.botvs.com/',
-      packages=[""],
+      packages=["botvs"],
      )
