@@ -36,6 +36,14 @@ gg['null'] = None
 gg['true'] = True
 gg['false'] = False
 
+# https://hynek.me/articles/hasattr/
+saved_hasattr = hasattr    
+def hasattr(obj, method):
+    try:
+        return saved_hasattr(obj, method)
+    except:
+        return False
+
 if isPython3:
     gg['xrange'] = range
 
