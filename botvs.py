@@ -94,6 +94,7 @@ class Std:
     @staticmethod
     def _skip(arr, period):
         k = 0
+        j = 0
         for j in xrange(0, len(arr)):
             if arr[j] is not None:
                 k+=1
@@ -954,7 +955,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "60940f582e13a2ee9b6f26fff3dad501" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "69499be39d22707c2559da7e35839e1b" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -995,6 +996,8 @@ class VCtx(object):
             if k.startswith('g_'):
                 gApis[k[2:]] = getattr(self, k)
 
+        self.realTime = time.time
+        time.time = self.g_PyTime
         gApis['__name__'] = '__main__'
         gApis["TA"] = TAInstance(self._logTA)
         gApis['exchanges'] = exchanges
@@ -1082,6 +1085,9 @@ class VCtx(object):
     def g_UnixNano(self):
         self.lib.api_UnixNano.restype = ctypes.c_ulonglong
         return self.lib.api_UnixNano(self.ctx)
+
+    def g_PyTime(self):
+        return float(self.g_UnixNano())/1e9
 
     def g_Sleep(self, n):
         if self.lib.api_Sleep(self.ctx, ctypes.c_double(n)) != 0:
@@ -1215,6 +1221,7 @@ class VCtx(object):
             self.lib.api_Release(self.ctx)
             self._joinResult = r
         self.gs.release()
+        time.time = self.realTime
         return self._joinResult
 
 class Backtest():
