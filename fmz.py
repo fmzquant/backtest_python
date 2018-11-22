@@ -595,6 +595,7 @@ class Exchange:
         self.label = cfg["Label"]
         self.currency = '%s_%s' % (cfg["BaseCurrency"], cfg["QuoteCurrency"])
         self.quoteCurrency = cfg["QuoteCurrency"]
+        self.maxBarLen = cfg.get('MaxBarLen', 1000)
         self.period = opt['Period']
         self.ct = ''
         self.records_cache = {}
@@ -691,7 +692,7 @@ class Exchange:
             k = '%s/%d' % (self.ct, period)
             c = self.records_cache.get(k, None)
             if c is None or len(c) == 0:
-                self.records_cache[k] = eles
+                self.records_cache[k] = eles[len(eles)-self.maxBarLen:]
             else:
                 preTime = 0 if len(c) == 0 else c[-1]['Time']
                 for ele in eles:
@@ -700,6 +701,8 @@ class Exchange:
                         c[-1] = ele
                     elif t > preTime:
                         c.append(ele)
+                        if len(c) > self.maxBarLen:
+                            c.pop(0)
                         preTime = t
             return MyList(self.records_cache[k])
         elif ret == API_ERR_FAILED:
@@ -870,6 +873,7 @@ def parseTask(s):
 		"BasePeriod": e.get('baseperiod', basePeriod),
 		"BasePrecision": 4,
 		"DepthDeep": 5,
+		"DepthAmount": 20,
 		"FaultTolerant": 0,
 		"FeeDenominator": 5,
 		"FeeMaker": e.get('feemaker', 75),
@@ -955,7 +959,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "7f43b8b7d9a8e985db657d6fb3163b0c" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "344615e25a7b91f9bf4a0911c2ab110d" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
