@@ -959,7 +959,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "db77c679b3a859af159ff3a8908e4385" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "cc914798c6cf358502084a6890b93c92" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1212,6 +1212,12 @@ class VCtx(object):
         if fmt is None:
             fmt = '%Y-%m-%d %H:%M:%S'
         return time.strftime(fmt, time.localtime(date))
+
+    def g__T(self, a, b=None):
+        r = str(a)
+        if b is not None:
+            r = str(a) + '|' + str(b)
+        return '[trans]'+r+'[/trans]'
 
     def g__N(self, n, precision=4):
         d = pow(10, precision)
