@@ -58,7 +58,7 @@ def safe_str(s):
     return str(s)
 
 CLUSTER_IP = os.getenv("CLUSTER_IP", "120.27.135.154")
-CLUSTER_DOMAIN = os.getenv("CLUSTER_DOMAIN", "q.botvs.net")
+CLUSTER_DOMAIN = os.getenv("CLUSTER_DOMAIN", "q.fmz.com")
 
 BT_Status = 1 << 0
 BT_Symbols = 1 << 1
@@ -909,7 +909,7 @@ def parseTask(s):
         exchanges.append(cfg)
 
     options = {
-		"DataServer": "q.botvs.net",
+		"DataServer": CLUSTER_DOMAIN,
 		"MaxChartLogs": 800,
 		"MaxProfitLogs": 800,
 		"MaxRuntimeLogs": 800,
@@ -959,7 +959,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "9059431b29cbd6f2a41bd6d6f87dd5fe" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "9b7456e50068d8d16e268177b440ef36" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
