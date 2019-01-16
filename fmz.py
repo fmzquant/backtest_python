@@ -57,7 +57,7 @@ def safe_str(s):
         return s.encode('utf-8')
     return str(s)
 
-CLUSTER_IP = os.getenv("CLUSTER_IP", "120.27.135.154")
+CLUSTER_IP = os.getenv("CLUSTER_IP", "q.fmz.com")
 CLUSTER_DOMAIN = os.getenv("CLUSTER_DOMAIN", "q.fmz.com")
 
 BT_Status = 1 << 0
@@ -959,7 +959,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "cb80d8f576454d2eb31c223ac6c85069" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "44b1ab4b6b92a904faba5722bb566ace" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
