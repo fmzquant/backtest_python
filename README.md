@@ -27,7 +27,7 @@ The config string can be generated automatically by saving the backtest configur
 
 配置字符串可以通过策略编辑界面里的保存回测配置来自动生成
 
-![meta](https://dn-filebox.qbox.me/aa67494fc6306759753385bf7634ee4cd437f3f2.png) 
+![meta](https://www.fmz.com/upload/asset/aa67494fc6306759753385bf7634ee4cd437f3f2.png) 
  
 ## documentation
 https://www.fmz.com/api
