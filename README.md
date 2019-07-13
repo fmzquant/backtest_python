@@ -18,9 +18,9 @@ exchanges: [{"eid":"OKEX","currency":"LTC_BTC","balance":3,"stocks":0}]
 '''
 from fmz import *
 task = VCtx(__doc__) # initialize backtest engine from __doc__
-print exchange.GetAccount()
-print exchange.GetTicker()
-print task.Join() # print backtest result
+print(exchange.GetAccount())
+print(exchange.GetTicker())
+print(task.Join()) # print backtest result
 ```
 
 The config string can be generated automatically by saving the backtest configuration in the strategy edit page.
