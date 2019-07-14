@@ -1332,7 +1332,7 @@ if __name__ == '__main__':
     uuid = os.getenv("BOTVS_TASK_UUID")
     session = None
     if uuid == 'dummy':
-        session = s
+        session = gg['s']
     else:
         session = DummySession()
     if session is not None:
