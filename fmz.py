@@ -752,6 +752,9 @@ class Exchange:
             return None
         EOF()
 
+    def Log(self, orderType, price, amount=0, *extra):
+        self.lib.api_Exchange_Log(self.ctx, self.idx, ctypes.c_int(orderType), ctypes.c_double(price), ctypes.c_double(amount), JoinArgs(extra))
+
     def GetOrder(self, orderId):
         r = _ORDER()
         ret = self.lib.api_Exchange_GetOrder(self.ctx, self.idx, ctypes.c_int(orderId), ctypes.byref(r))
@@ -959,7 +962,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "bfe62471b5f05f7c827cf4057c89040d" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "a59a2a19d9932991cede6d333bede759" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
