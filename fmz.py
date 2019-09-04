@@ -556,6 +556,13 @@ class _ORDER(_CSTRUCT):
             ("Status", ctypes.c_uint), 
             ("ContractType", ctypes.c_char * 31)]
 
+class _TRADE(_CSTRUCT):
+    _fields_ = [("Id", ctypes.c_ulonglong), 
+            ("Time", ctypes.c_ulonglong),
+            ("Price", ctypes.c_double), 
+            ("Amount", ctypes.c_double),
+            ("Type", ctypes.c_uint)] 
+
 class _POSITION(_CSTRUCT):
     _fields_ = [("MarginLevel", ctypes.c_ulonglong), 
             ("Amount", ctypes.c_double), 
@@ -637,7 +644,22 @@ class Exchange:
         return self.lib.api_Exchange_SetRate(self.ctx, self.idx, ctypes.c_double(rate))
 
     def GetTrades(self):
-        return []
+        r_len = ctypes.c_uint(0)
+        buf_ptr = ctypes.c_void_p()
+        ret = self.lib.api_Exchange_GetTrades(self.ctx, self.idx, ctypes.byref(r_len), ctypes.byref(buf_ptr))
+
+        if ret == API_ERR_SUCCESS:
+            n = r_len.value
+            eles = []
+            if n > 0:
+                group_array = (_TRADE * n).from_address(buf_ptr.value)
+                for i in range(0, n):
+                    eles.append(group_array[i].toObj())
+                self.lib.api_free(buf_ptr)
+            return eles
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
 
     def GetTicker(self):
         r = _TICKER()
@@ -962,7 +984,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "342786d40cc1be748bd3a84abc91d78e" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "7b161752e8a00b9c6a295cc76e45d9a0" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
