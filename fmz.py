@@ -527,7 +527,8 @@ class _TICKER(_CSTRUCT):
             ("Sell", ctypes.c_double), 
             ("Buy", ctypes.c_double), 
             ("Last", ctypes.c_double), 
-            ("Volume", ctypes.c_double)]
+            ("Volume", ctypes.c_double),
+            ("OpenInterest", ctypes.c_double)]
 
 class _RECORD(_CSTRUCT):
     _fields_ = [("Time", ctypes.c_ulonglong), 
@@ -984,7 +985,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "b8652bd298fabfd3a51d32c4b4d7ab74" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "1833798bcdd6da0603dda70b0212d1d1" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
