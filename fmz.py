@@ -554,6 +554,7 @@ class _ORDER(_CSTRUCT):
             ("DealAmount", ctypes.c_double), 
             ("AvgPrice", ctypes.c_double), 
             ("Type", ctypes.c_uint), 
+            ("Offset", ctypes.c_uint), 
             ("Status", ctypes.c_uint), 
             ("ContractType", ctypes.c_char * 31)]
 
@@ -985,7 +986,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "e58391238ccce53f325ca68c34e47b8a" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "08e6b9442905ff846e2e7b10620b7ad1" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1043,6 +1044,8 @@ class VCtx(object):
         gApis["ORDER_STATE_UNKNOWN"] = 3
         gApis["ORDER_TYPE_BUY"] = 0
         gApis["ORDER_TYPE_SELL"] = 1
+        gApis["ORDER_OFFSET_OPEN"] = 0
+        gApis["ORDER_OFFSET_CLOSE"] = 1
 
         gApis["PD_LONG"] = 0
         gApis["PD_SHORT"] = 1
