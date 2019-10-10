@@ -20,7 +20,7 @@ from fmz import *
 task = VCtx(__doc__) # initialize backtest engine from __doc__
 print(exchange.GetAccount())
 print(exchange.GetTicker())
-print(task.Join()) # print backtest result
+print(task.Join(True)) # print backtest result
 ```
 
 The config string can be generated automatically by saving the backtest configuration in the strategy edit page.
@@ -29,6 +29,6 @@ The config string can be generated automatically by saving the backtest configur
 
 ![meta](https://www.fmz.com/upload/asset/aa67494fc6306759753385bf7634ee4cd437f3f2.png) 
  
-## documentation
+## api
 https://www.fmz.com/api
 
