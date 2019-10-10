@@ -29,6 +29,11 @@ except:
     import hashlib as md5
     import urllib.request as urllib2
 
+try:
+    from urllib import urlencode
+except:
+    from urllib.parse import urlencode
+
 isPython3 = sys.version_info[0] >= 3
 gg = globals()
 gg['NaN'] = None
@@ -868,6 +873,7 @@ def parseTask(s):
             dic[k] = v
     period = 60000 * 60
     periodStr = dic.get('period', '1h')
+    pnl = dic.get('pnl', 'true')
     tmp = int(periodStr[:-1])
     c = periodStr[-1]
     if c == 'd':
@@ -895,7 +901,7 @@ def parseTask(s):
             basePeriod = 60000
 
         cfg = {
-		"Balance": e.get('balance', 20000.0),
+		"Balance": e.get('balance', 10000.0),
 		"BaseCurrency": arr[0],
 		"BasePeriod": e.get('baseperiod', basePeriod),
 		"BasePrecision": 4,
@@ -912,16 +918,16 @@ def parseTask(s):
 		"QuoteCurrency": arr[1],
 		"QuotePrecision": 8,
 		"SlipPoint": 0,
-		"Stocks": e.get('stocks', 6.0)
+		"Stocks": e.get('stocks', 3.0)
 	}
         if e['eid'] == 'Futures_CTP':
             cfg['BasePrecision'] = 0
             cfg['QuotePrecision'] = 1
             cfg['DepthDeep'] = 1
-        elif e['eid'] == 'Futures_OKCoin':
+        elif e['eid'] == 'Futures_OKCoin' or e['eid'] == 'Futures_HuobiDM':
             cfg['BasePrecision'] = 0
             cfg['QuotePrecision'] = 5
-        elif e['eid'] == 'Bitfinex':
+        elif e['eid'] == 'Bitfinex' or e['eid'] == 'Binance':
             cfg['BasePrecision'] = 4
             cfg['QuotePrecision'] = 4
             cfg['PriceTick'] = 0.001
@@ -943,11 +949,21 @@ def parseTask(s):
 		"NetDelay": 200,
 		"Period": period,
 		"RetFlags": BT_Status | BT_Indicators | BT_Accounts | BT_Chart | BT_RuntimeLogs | BT_ProfitLogs,
-		"SnapshortPeriod": basePeriod,
 		"TimeBegin": int(time.mktime(datetime.datetime.strptime(dic.get('start', '2018-02-01 00:00:00'), "%Y-%m-%d %H:%M:%S").timetuple())),
 		"TimeEnd": int(time.mktime(datetime.datetime.strptime(dic.get('end', '2018-02-05 00:00:00'), "%Y-%m-%d %H:%M:%S").timetuple())),
 		"UpdatePeriod": 5000
 	}
+    snapshortPeriod = 86400
+    testRange = options['TimeEnd'] - options['TimeBegin']
+    if testRange / 3600 <= 2:
+        snapshortPeriod = 60
+    elif testRange / 86400 <= 2:
+        snapshortPeriod = 300
+    elif testRange / 86400 < 30:
+        snapshortPeriod = 3600
+    options['SnapshortPeriod'] = snapshortPeriod * 1000
+    if pnl == 'true':
+        options['RetFlags'] |= BT_Accounts_PnL
     return {'Exchanges': exchanges, 'Options': options}
 
 class Templates():
@@ -986,7 +1002,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "66c02e400f5b60998fba6be1d8848aba" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "19534cbd429817065a5d847043d5ca2f" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1255,7 +1271,7 @@ class VCtx(object):
         d = pow(10, precision)
         return int(n*d) / float(d)
 
-    def Join(self):
+    def Join(self, report=False):
         self.gs.acquire()
         if self._joinResult is None:
             self.lib.api_Join.restype = ctypes.c_char_p
@@ -1264,7 +1280,51 @@ class VCtx(object):
             self._joinResult = r
         self.gs.release()
         time.time = self.realTime
-        return self._joinResult
+        if not report:
+            return self._joinResult
+        import pandas as pd
+        from pandas.plotting import register_matplotlib_converters
+        register_matplotlib_converters()
+        ret = json.loads(self._joinResult)
+        pnl = []
+        index = []
+        symbol = None
+        eid = None
+        for ele in ret['Snapshorts']:
+            acc = ele[1][0]
+            close = float('nan')
+            eid = acc['Id']
+            balance = acc['Balance'] + acc['FrozenBalance']
+            stocks = acc['Stocks'] + acc['FrozenStocks']
+            if eid == 'Futures_CTP' or eid == 'Futures_LTS':
+                for s in acc['Symbols']:
+                    pos = acc['Symbols'][s]
+                    for t in ['Long', 'Short']:
+                        if t in pos:
+                            balance += pos[t]['Margin'] + pos[t]['Profit']
+                pnl.append([acc['Balance'] + acc['FrozenBalance'], balance])
+            elif 'Futures_' in eid:
+                for s in acc['Symbols']:
+                    pos = acc['Symbols'][s]
+                    for t in ['Long', 'Short']:
+                        if t in pos:
+                            stocks += pos[t]['Margin'] + pos[t]['Profit']
+                pnl.append([acc['Stocks'] + acc['FrozenStocks'], stocks])
+            else:
+                if symbol is None:
+                    for s in acc['Symbols']:
+                        symbol = s
+                        break
+                if symbol is not None:
+                    close = acc['Symbols'][symbol]['Last']
+                pnl.append([close, balance, stocks, balance+(stocks*close)])
+            index.append(pd.Timestamp(ele[0], unit='ms', tz='Asia/Shanghai'))
+        columns=["close", "balance", "stocks", "net"]
+        if eid == 'Futures_CTP' or eid == 'Futures_LTS':
+            columns=["balance", "net"]
+        elif 'Futures_' in eid:
+            columns=["stocks", "net"]
+        return pd.DataFrame(pnl, index=index, columns=columns)
 
 class Backtest():
     def __init__(self, task, session):
@@ -1356,6 +1416,42 @@ class DummySession():
         pass
     def shutdown(self, *args):
         pass
+
+def get_bars(symbol, unit='1d', start=None, end=None, count=200):
+    if hasattr(unit, 'endswith'):
+        if unit.endswith('d'):
+            unit = int(unit[:-1]) * 1440
+        elif unit.endswith('h'):
+            unit = int(unit[:-1]) * 60
+        elif unit.endswith('m'):
+            unit = int(unit[:-1])
+    ts_to = int(time.time())
+    if end is not None:
+        end = end.replace('/', '-')
+        ts_to = int(time.mktime(datetime.datetime.strptime(end, "%Y-%m-%d %H:%M:%S" if ' ' in end else "%Y-%m-%d").timetuple()))
+    if start is not None:
+        start = start.replace('/', '-')
+        ts_from = int(time.mktime(datetime.datetime.strptime(start, "%Y-%m-%d %H:%M:%S" if ' ' in start else "%Y-%m-%d").timetuple()))
+        if end is None:
+            ts_to = ts_from+(unit*60*(count+10))
+    else:
+        ts_from = ts_to-(unit*60*(count+10))
+    params = {"symbol": symbol.upper(), "resolution": unit, "from": ts_from, "to": ts_to}
+    data = json.loads(httpGet("http://"+ CLUSTER_IP + "/chart/history?"+urlencode(params), CLUSTER_DOMAIN))
+    try:
+        import pandas as pd
+        from pandas.plotting import register_matplotlib_converters
+        register_matplotlib_converters()
+    except:
+        return data
+    index = []
+    fmt = '%Y-%m-%d %H:%M:%S'
+    if unit >= 1440:
+        fmt = '%Y-%m-%d'
+    for ele in data:
+        index.append(pd.Timestamp(ele[0], unit='s', tz='Asia/Shanghai'))
+        ele.pop(0)
+    return pd.DataFrame(data, index=index, columns=["open", "high", "low", "close", "volume"])
 
 if __name__ == '__main__':
     uuid = os.getenv("BOTVS_TASK_UUID")
