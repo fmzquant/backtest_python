@@ -4,6 +4,13 @@ FMZ backtest engine python package
 support python2 and python3, support Windows, Linux, Mac
 
 ## install
+
+```
+pip install https://github.com/fmzquant/backtest_python/archive/master.zip
+```
+
+OR
+
 ```
 pip install https://github.com/fmzquant/backtest_python/archive/master.zip
 ```
