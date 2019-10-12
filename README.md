@@ -12,7 +12,7 @@ pip install https://github.com/fmzquant/backtest_python/archive/master.zip
 OR
 
 ```
-pip install https://github.com/fmzquant/backtest_python/archive/master.zip
+pip3 install https://github.com/fmzquant/backtest_python/archive/master.zip
 ```
 
 ## simple example
