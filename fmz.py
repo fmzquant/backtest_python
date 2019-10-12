@@ -935,6 +935,11 @@ def parseTask(s):
             cfg['BasePrecision'] = 3
             cfg['QuotePrecision'] = 3
             cfg['PriceTick'] = 0.01
+        elif e['eid'] == 'Futures_BitMEX':
+            cfg['PriceTick'] = 0.5
+            bm = cfg['BasePeriod']/60000
+            if bm == 15 or bm == 30:
+                cfg['BasePeriod'] = 300000
         elif 'Futures' not in e['eid']:
             cfg['BasePrecision'] = 4
             cfg['QuotePrecision'] = 8
