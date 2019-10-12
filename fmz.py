@@ -1283,8 +1283,11 @@ class VCtx(object):
         if not report:
             return self._joinResult
         import pandas as pd
-        from pandas.plotting import register_matplotlib_converters
-        register_matplotlib_converters()
+        try:
+            from pandas.plotting import register_matplotlib_converters
+            register_matplotlib_converters()
+        except:
+            pass
         ret = json.loads(self._joinResult)
         pnl = []
         index = []
@@ -1296,22 +1299,25 @@ class VCtx(object):
             eid = acc['Id']
             balance = acc['Balance'] + acc['FrozenBalance']
             stocks = acc['Stocks'] + acc['FrozenStocks']
+            symbols = acc['Symbols']
             if eid == 'Futures_CTP' or eid == 'Futures_LTS':
-                for s in acc['Symbols']:
-                    pos = acc['Symbols'][s]
-                    for t in ['Long', 'Short']:
-                        if t in pos:
-                            balance += pos[t]['Margin'] + pos[t]['Profit']
+                if symbols:
+                    for s in symbols:
+                        pos = acc['Symbols'][s]
+                        for t in ['Long', 'Short']:
+                            if t in pos:
+                                balance += pos[t]['Margin'] + pos[t]['Profit']
                 pnl.append([acc['Balance'] + acc['FrozenBalance'], balance])
             elif 'Futures_' in eid:
-                for s in acc['Symbols']:
-                    pos = acc['Symbols'][s]
-                    for t in ['Long', 'Short']:
-                        if t in pos:
-                            stocks += pos[t]['Margin'] + pos[t]['Profit']
+                if symbols:
+                    for s in symbols:
+                        pos = acc['Symbols'][s]
+                        for t in ['Long', 'Short']:
+                            if t in pos:
+                                stocks += pos[t]['Margin'] + pos[t]['Profit']
                 pnl.append([acc['Stocks'] + acc['FrozenStocks'], stocks])
             else:
-                if symbol is None:
+                if symbol is None and symbols:
                     for s in acc['Symbols']:
                         symbol = s
                         break
