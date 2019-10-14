@@ -678,7 +678,7 @@ class Exchange:
         EOF()
 
     def IO(self, k, v = 0):
-        return self.lib.api_Exchange_IO(self.ctx, self.idx, str(k), int(v))
+        return self.lib.api_Exchange_IO(self.ctx, self.idx, safe_str(k), int(v))
 
     def GetDepth(self):
         ask_len = ctypes.c_uint(0)
@@ -1029,7 +1029,7 @@ class VCtx(object):
         #declare
         lib = ctypes.CDLL(loader)
         lib.api_backtest.restype = ctypes.c_void_p
-        ctx = ctypes.c_void_p(lib.api_backtest(json.dumps(task).encode('utf8'), self.httpGetPtr, self.progessCallbackPtr))
+        ctx = ctypes.c_void_p(lib.api_backtest(safe_str(json.dumps(task)), self.httpGetPtr, self.progessCallbackPtr))
         if not ctx:
             raise 'Initialize backtest engine error'
         self.ctx = ctx
