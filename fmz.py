@@ -469,6 +469,8 @@ class MyList(list):
         super(MyList, self).__init__(data)
         self.__data = data
     def __getattr__(self, attr):
+        if attr.startswith('_'):
+            raise AttributeError
         ret = []
         for item in self.__data:
             ret.append(item[attr])
@@ -1156,6 +1158,9 @@ class VCtx(object):
     def g_LogReset(self, keep = 0):
         self.lib.api_LogReset(self.ctx, ctypes.c_int(keep))
 
+    def g_LogVacuum(self):
+        pass
+
     def g_LogStatus(self, *extra):
         self.lib.api_LogStatus(self.ctx, JoinArgs(extra))
 
@@ -1176,7 +1181,7 @@ class VCtx(object):
         return ''
 
     def g_MD5(self, s):
-        return md5.md5(s).hexdigest()
+        return md5.md5(safe_str(s)).hexdigest()
 
     def g_HttpQuery(self, *args):
         return 'dummy'
