@@ -901,6 +901,23 @@ def parseTask(s):
             basePeriod = 60000 * 5
         elif periodStr == '5m':
             basePeriod = 60000
+        feeDef = {
+            'OKCoin_EN': [150, 200],
+            'Huobi': [150, 200],
+            'OKEX': [150, 200],
+            'Binance': [150, 200],
+            'Futures_BitMEX': [8, 10],
+            'Futures_OKCoin': [30, 30],
+            'Futures_HuobiDM': [30, 30],
+            'Futures_CTP': [25, 25],
+            'Futures_LTS': [30, 130],
+        }
+
+        fee = e.get('fee')
+        if fee is None:
+            fee = feeDef.get(e['eid'], [200, 200])
+        else:
+            fee = [int(fee[0]*1000), int(fee[1]*1000)]
 
         cfg = {
 		"Balance": e.get('balance', 10000.0),
@@ -911,8 +928,8 @@ def parseTask(s):
 		"DepthAmount": 20,
 		"FaultTolerant": 0,
 		"FeeDenominator": 5,
-		"FeeMaker": e.get('feemaker', 75),
-		"FeeTaker": e.get('feetaker', 80),
+		"FeeMaker": fee[0],
+		"FeeTaker": fee[1],
 		"FeeMin": e.get('feemin', 0),
 		"Id": e['eid'],
 		"Label": e['eid'],
@@ -1309,6 +1326,7 @@ class VCtx(object):
             eid = acc['Id']
             balance = acc['Balance'] + acc['FrozenBalance']
             stocks = acc['Stocks'] + acc['FrozenStocks']
+            commission = acc.get('Commission', 0)
             symbols = acc['Symbols']
             if eid == 'Futures_CTP' or eid == 'Futures_LTS':
                 if symbols:
@@ -1317,7 +1335,7 @@ class VCtx(object):
                         for t in ['Long', 'Short']:
                             if t in pos:
                                 balance += pos[t]['Margin'] + pos[t]['Profit']
-                pnl.append([acc['Balance'] + acc['FrozenBalance'], balance])
+                pnl.append([acc['Balance'] + acc['FrozenBalance'], commission, balance])
             elif 'Futures_' in eid:
                 if symbols:
                     for s in symbols:
@@ -1325,7 +1343,7 @@ class VCtx(object):
                         for t in ['Long', 'Short']:
                             if t in pos:
                                 stocks += pos[t]['Margin'] + pos[t]['Profit']
-                pnl.append([acc['Stocks'] + acc['FrozenStocks'], stocks])
+                pnl.append([acc['Stocks'] + acc['FrozenStocks'], commission, stocks])
             else:
                 if symbol is None and symbols:
                     for s in acc['Symbols']:
@@ -1333,13 +1351,13 @@ class VCtx(object):
                         break
                 if symbol is not None:
                     close = acc['Symbols'][symbol]['Last']
-                pnl.append([close, balance, stocks, balance+(stocks*close)])
+                pnl.append([close, balance, stocks, commission, balance+(stocks*close)])
             index.append(pd.Timestamp(ele[0], unit='ms', tz='Asia/Shanghai'))
-        columns=["close", "balance", "stocks", "net"]
+        columns=["close", "balance", "stocks", "fee", "net"]
         if eid == 'Futures_CTP' or eid == 'Futures_LTS':
-            columns=["balance", "net"]
+            columns=["balance", "fee", "net"]
         elif 'Futures_' in eid:
-            columns=["stocks", "net"]
+            columns=["stocks", "fee", "net"]
         return pd.DataFrame(pnl, index=index, columns=columns)
 
 class Backtest():
