@@ -1470,7 +1470,7 @@ def get_bars(symbol, unit='1d', start=None, end=None, count=200):
             ts_to = ts_from+(unit*60*(count+10))
     else:
         ts_from = ts_to-(unit*60*(count+10))
-    params = {"symbol": symbol.upper(), "resolution": unit, "from": ts_from, "to": ts_to}
+    params = {"symbol": symbol, "resolution": unit, "from": ts_from, "to": ts_to}
     data = json.loads(httpGet("http://"+ CLUSTER_IP + "/chart/history?"+urlencode(params), CLUSTER_DOMAIN))
     try:
         import pandas as pd
