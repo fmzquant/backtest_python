@@ -62,8 +62,8 @@ def safe_str(s):
         return s.encode('utf-8')
     return str(s)
 
-CLUSTER_IP = os.getenv("CLUSTER_IP", "q.fmz.com")
-CLUSTER_DOMAIN = os.getenv("CLUSTER_DOMAIN", "q.fmz.com")
+CLUSTER_IP = os.getenv("CLUSTER_IP", "q.fmzio.com")
+CLUSTER_DOMAIN = os.getenv("CLUSTER_DOMAIN", "q.fmzio.com")
 
 BT_Status = 1 << 0
 BT_Symbols = 1 << 1
@@ -523,8 +523,11 @@ def JoinArgs(args):
 class _CSTRUCT(ctypes.Structure):
     def toObj(self):
         obj = {}
-        for k, v in self._fields_:
-            obj[k] = getattr(self, k)
+        for k, t in self._fields_:
+            v = getattr(self, k)
+            if isinstance(v, bytes):
+                v = v.decode()
+            obj[k] = v
         return dic2obj(obj)
 
 class _TICKER(_CSTRUCT):
@@ -1496,3 +1499,4 @@ if __name__ == '__main__':
         session = DummySession()
     if session is not None:
         Backtest(__cfg__, session).Run()
+
