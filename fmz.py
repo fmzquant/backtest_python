@@ -787,7 +787,11 @@ class Exchange:
         EOF()
 
     def Log(self, orderType, price, amount=0, *extra):
-        self.lib.api_Exchange_Log(self.ctx, self.idx, ctypes.c_int(orderType), ctypes.c_double(price), ctypes.c_double(amount), JoinArgs(extra))
+        ret = self.lib.api_Exchange_Log(self.ctx, self.idx, ctypes.c_int(orderType), ctypes.c_double(price), ctypes.c_double(amount), JoinArgs(extra))
+        if orderType == 2:
+            return bool(ret)
+        if ret > 0:
+            return int(ret)
 
     def GetOrder(self, orderId):
         r = _ORDER()
@@ -1029,7 +1033,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "3f8acb6eb7e38cc9b294698d2dd2a564" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "92ed62ca42aa9c51be0515c7a8675b01" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1046,8 +1050,8 @@ class VCtx(object):
                     except:
                         pass
             if update:
-                open(loader, 'wb').write(httpGet("http://" + CLUSTER_IP + "/dist/depends/" + soName, CLUSTER_DOMAIN))
-                open(js, 'wb').write(httpGet("http://" + CLUSTER_IP + "/dist/depends/md5.json", CLUSTER_DOMAIN))
+                open(loader, 'wb').write(httpGet("https://" + CLUSTER_IP + "/dist/depends/" + soName, CLUSTER_DOMAIN))
+                open(js, 'wb').write(httpGet("https://" + CLUSTER_IP + "/dist/depends/md5.json", CLUSTER_DOMAIN))
         #declare
         lib = ctypes.CDLL(loader)
         lib.api_backtest.restype = ctypes.c_void_p
@@ -1125,7 +1129,7 @@ class VCtx(object):
             pass
 
     def httpGetCallback(self, path, ptr_buf, ptr_size, ptr_need_free):
-        url = 'http://' + CLUSTER_IP + path.decode('utf8')
+        url = 'https://' + CLUSTER_IP + path.decode('utf8')
         tmpCache = getCacheDir()
         cacheFile = tmpCache+'/botvs_kline_'+md5.md5(path).hexdigest()
         data = None
@@ -1482,9 +1486,6 @@ def get_bars(symbol, unit='1d', start=None, end=None, count=200):
     except:
         return data
     index = []
-    fmt = '%Y-%m-%d %H:%M:%S'
-    if unit >= 1440:
-        fmt = '%Y-%m-%d'
     for ele in data:
         index.append(pd.Timestamp(ele[0], unit='s', tz='Asia/Shanghai'))
         ele.pop(0)
@@ -1499,4 +1500,3 @@ if __name__ == '__main__':
         session = DummySession()
     if session is not None:
         Backtest(__cfg__, session).Run()
-
