@@ -1050,8 +1050,8 @@ class VCtx(object):
                     except:
                         pass
             if update:
-                open(loader, 'wb').write(httpGet("https://" + CLUSTER_IP + "/dist/depends/" + soName, CLUSTER_DOMAIN))
-                open(js, 'wb').write(httpGet("https://" + CLUSTER_IP + "/dist/depends/md5.json", CLUSTER_DOMAIN))
+                open(loader, 'wb').write(httpGet("http://" + CLUSTER_IP + "/dist/depends/" + soName, CLUSTER_DOMAIN))
+                open(js, 'wb').write(httpGet("http://" + CLUSTER_IP + "/dist/depends/md5.json", CLUSTER_DOMAIN))
         #declare
         lib = ctypes.CDLL(loader)
         lib.api_backtest.restype = ctypes.c_void_p
@@ -1129,7 +1129,7 @@ class VCtx(object):
             pass
 
     def httpGetCallback(self, path, ptr_buf, ptr_size, ptr_need_free):
-        url = 'https://' + CLUSTER_IP + path.decode('utf8')
+        url = 'http://' + CLUSTER_IP + path.decode('utf8')
         tmpCache = getCacheDir()
         cacheFile = tmpCache+'/botvs_kline_'+md5.md5(path).hexdigest()
         data = None
