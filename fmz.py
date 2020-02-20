@@ -546,7 +546,7 @@ class _RECORD(_CSTRUCT):
             ("High", ctypes.c_double), 
             ("Low", ctypes.c_double), 
             ("Close", ctypes.c_double), 
-            ("Close", ctypes.c_double), 
+            ("Volume", ctypes.c_double), 
             ("OpenInterest", ctypes.c_double)]
 
 class _MARKET_ORDER(_CSTRUCT):
