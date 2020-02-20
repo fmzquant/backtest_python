@@ -546,7 +546,8 @@ class _RECORD(_CSTRUCT):
             ("High", ctypes.c_double), 
             ("Low", ctypes.c_double), 
             ("Close", ctypes.c_double), 
-            ("Volume", ctypes.c_double)]
+            ("Close", ctypes.c_double), 
+            ("OpenInterest", ctypes.c_double)]
 
 class _MARKET_ORDER(_CSTRUCT):
     _fields_ = [("Price", ctypes.c_double), ("Amount", ctypes.c_double)]
@@ -710,7 +711,7 @@ class Exchange:
 
     def GetRecords(self, period=-1):
         if period == -1:
-            period = self.period/1000
+            period = int(self.period/1000)
         r_len = ctypes.c_uint(0)
         buf_ptr = ctypes.c_void_p()
         ret = self.lib.api_Exchange_GetRecords(self.ctx, self.idx, ctypes.c_long(period), ctypes.byref(r_len), ctypes.byref(buf_ptr))
@@ -1033,7 +1034,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "9ab96aee3f8c5f26ed5744c8b3a3eaf1" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "39addfaed8c732b08d9c843a4341feb6" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
