@@ -710,7 +710,7 @@ class Exchange:
 
     def GetRecords(self, period=-1):
         if period == -1:
-            period = self.period
+            period = self.period/1000
         r_len = ctypes.c_uint(0)
         buf_ptr = ctypes.c_void_p()
         ret = self.lib.api_Exchange_GetRecords(self.ctx, self.idx, ctypes.c_long(period), ctypes.byref(r_len), ctypes.byref(buf_ptr))
@@ -1033,7 +1033,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "92ed62ca42aa9c51be0515c7a8675b01" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "9ab96aee3f8c5f26ed5744c8b3a3eaf1" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1107,14 +1107,14 @@ class VCtx(object):
         gApis["LOG_TYPE_LOG"] = 5
         gApis["LOG_TYPE_RESTART"] = 6
 
-        gApis["PERIOD_M1"] = 60000 * 1
-        gApis["PERIOD_M3"] = 60000 * 3
-        gApis["PERIOD_M5"] = 60000 * 5
-        gApis["PERIOD_M15"] = 60000 * 15
-        gApis["PERIOD_M30"] = 60000 * 30
-        gApis["PERIOD_H1"]  = 60000 * 60
-        gApis["PERIOD_D1"]  = 60000 * 60 * 24
-        gApis["PERIOD_W1"]  = 60000 * 60 * 24  * 7
+        gApis["PERIOD_M1"] = 60 * 1
+        gApis["PERIOD_M3"] = 60 * 3
+        gApis["PERIOD_M5"] = 60 * 5
+        gApis["PERIOD_M15"] = 60 * 15
+        gApis["PERIOD_M30"] = 60 * 30
+        gApis["PERIOD_H1"]  = 60 * 60
+        gApis["PERIOD_D1"]  = 60 * 60 * 24
+        gApis["PERIOD_W1"]  = 60 * 60 * 24  * 7
         if autoRun:
             try:
                 gApis['main']()
