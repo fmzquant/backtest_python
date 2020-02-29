@@ -62,8 +62,8 @@ def safe_str(s):
         return s.encode('utf-8')
     return str(s)
 
-CLUSTER_IP = os.getenv("CLUSTER_IP", "q.fmzio.com")
-CLUSTER_DOMAIN = os.getenv("CLUSTER_DOMAIN", "q.fmzio.com")
+CLUSTER_IP = os.getenv("CLUSTER_IP", "q.fmz.com")
+CLUSTER_DOMAIN = os.getenv("CLUSTER_DOMAIN", "q.fmz.com")
 
 BT_Status = 1 << 0
 BT_Symbols = 1 << 1
@@ -714,7 +714,7 @@ class Exchange:
             period = int(self.period/1000)
         r_len = ctypes.c_uint(0)
         buf_ptr = ctypes.c_void_p()
-        ret = self.lib.api_Exchange_GetRecords(self.ctx, self.idx, ctypes.c_long(period), ctypes.byref(r_len), ctypes.byref(buf_ptr))
+        ret = self.lib.api_Exchange_GetRecords(self.ctx, self.idx, ctypes.c_long(int(period)), ctypes.byref(r_len), ctypes.byref(buf_ptr))
 
         if ret == API_ERR_SUCCESS:
             n = r_len.value
@@ -1034,7 +1034,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "39addfaed8c732b08d9c843a4341feb6" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "368294adf115d04cf2c1dc97d527b2ab" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
