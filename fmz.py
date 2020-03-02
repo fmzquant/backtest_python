@@ -1034,7 +1034,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "368294adf115d04cf2c1dc97d527b2ab" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "5e282a8a25fd78d9736922781a5cb55e" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1475,9 +1475,13 @@ def get_bars(symbol, unit='1d', start=None, end=None, count=200):
         start = start.replace('/', '-')
         ts_from = int(time.mktime(datetime.datetime.strptime(start, "%Y-%m-%d %H:%M:%S" if ' ' in start else "%Y-%m-%d").timetuple()))
         if end is None:
-            ts_to = ts_from+(unit*60*(count+10))
+            ts_to = ts_from+(unit*100*(count+10))
     else:
-        ts_from = ts_to-(unit*60*(count+10))
+        if end is None:
+            ts_from = 0
+            ts_to = 0
+        else:
+            ts_from = ts_to-(unit*100*(count+10))
     params = {"symbol": symbol, "resolution": unit, "from": ts_from, "to": ts_to}
     data = json.loads(httpGet("http://"+ CLUSTER_IP + "/chart/history?"+urlencode(params), CLUSTER_DOMAIN))
     try:
@@ -1490,7 +1494,10 @@ def get_bars(symbol, unit='1d', start=None, end=None, count=200):
     for ele in data:
         index.append(pd.Timestamp(ele[0], unit='s', tz='Asia/Shanghai'))
         ele.pop(0)
-    return pd.DataFrame(data, index=index, columns=["open", "high", "low", "close", "volume"])
+    columns=["open", "high", "low", "close", "volume"]
+    if len(data) > 0 and len(data[0]) == 6:
+        columns.append("openInterest")
+    return pd.DataFrame(data, index=index, columns=columns)
 
 if __name__ == '__main__':
     uuid = os.getenv("BOTVS_TASK_UUID")
