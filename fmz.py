@@ -871,7 +871,7 @@ class Chart(object):
 
 def periodToMs(s, default):
     period = default
-    if len(s) == 0:
+    if len(s) < 2:
         return period
     tmp = int(s[:-1])
     c = s[-1]
