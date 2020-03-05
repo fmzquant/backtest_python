@@ -869,6 +869,20 @@ class Chart(object):
     def reset(self, keep=0):
         self.lib.api_Chart_Reset(self.ctx, keep)
 
+def periodToSeconds(s, default):
+    period = default
+    if len(s) == 0:
+        return period
+    tmp = int(s[:-1])
+    c = s[-1]
+    if c == 'd':
+        period = tmp * 60000 * 60 * 24
+    elif c == 'm':
+        period = tmp * 60000
+    elif c == 'm':
+        period = tmp * 60000
+    return period
+
 def parseTask(s):
     settings = s
     dic = {}
@@ -881,34 +895,27 @@ def parseTask(s):
             k = arr[0].strip()
             v = arr[1].strip()
             dic[k] = v
-    period = 60000 * 60
-    periodStr = dic.get('period', '1h')
     pnl = dic.get('pnl', 'true')
-    tmp = int(periodStr[:-1])
-    c = periodStr[-1]
-    if c == 'd':
-        period = tmp * 60000 * 60 * 24
-    elif c == 'm':
-        period = tmp * 60000
-    elif c == 'm':
-        period = tmp * 60000
+    period = periodToSeconds(dic.get('period', '1h'), 60000 * 60)
+    basePeriod = periodToSeconds(dic.get('basePeriod', ''), 0)
 
     exchanges = []
     for e in json.loads(dic.get('exchanges', '[]')):
         arr = e['currency'].upper().split('_')
         if len(arr) == 1:
             arr.append('CNY' if 'CTP' in e['eid'] else 'USD')
-        basePeriod = 60000 * 60
-        if periodStr == '1d':
+        if basePeriod == 0:
             basePeriod = 60000 * 60
-        elif periodStr == '1h' or periodStr == '60m':
-            basePeriod = 60000 * 30
-        elif periodStr == '30m':
-            basePeriod = 60000 * 15
-        elif periodStr == '15m':
-            basePeriod = 60000 * 5
-        elif periodStr == '5m':
-            basePeriod = 60000
+            if periodStr == '1d':
+                basePeriod = 60000 * 60
+            elif periodStr == '1h' or periodStr == '60m':
+                basePeriod = 60000 * 30
+            elif periodStr == '30m':
+                basePeriod = 60000 * 15
+            elif periodStr == '15m':
+                basePeriod = 60000 * 5
+            elif periodStr == '5m':
+                basePeriod = 60000
         feeDef = {
             'OKCoin_EN': [150, 200],
             'Huobi': [150, 200],
@@ -930,7 +937,7 @@ def parseTask(s):
         cfg = {
 		"Balance": e.get('balance', 10000.0),
 		"BaseCurrency": arr[0],
-		"BasePeriod": e.get('baseperiod', basePeriod),
+		"BasePeriod": basePeriod,
 		"BasePrecision": 4,
 		"DepthDeep": 5,
 		"DepthAmount": 20,
@@ -938,7 +945,7 @@ def parseTask(s):
 		"FeeDenominator": 5,
 		"FeeMaker": fee[0],
 		"FeeTaker": fee[1],
-		"FeeMin": e.get('feemin', 0),
+		"FeeMin": e.get('feeMin', 0),
 		"Id": e['eid'],
 		"Label": e['eid'],
 		"PriceTick": 1e-05,
@@ -981,8 +988,8 @@ def parseTask(s):
 		"NetDelay": 200,
 		"Period": period,
 		"RetFlags": BT_Status | BT_Indicators | BT_Accounts | BT_Chart | BT_RuntimeLogs | BT_ProfitLogs,
-		"TimeBegin": int(time.mktime(datetime.datetime.strptime(dic.get('start', '2018-02-01 00:00:00'), "%Y-%m-%d %H:%M:%S").timetuple())),
-		"TimeEnd": int(time.mktime(datetime.datetime.strptime(dic.get('end', '2018-02-05 00:00:00'), "%Y-%m-%d %H:%M:%S").timetuple())),
+		"TimeBegin": int(time.mktime(datetime.datetime.strptime(dic.get('start', '2019-02-01 00:00:00'), "%Y-%m-%d %H:%M:%S").timetuple())),
+		"TimeEnd": int(time.mktime(datetime.datetime.strptime(dic.get('end', '2019-02-10 00:00:00'), "%Y-%m-%d %H:%M:%S").timetuple())),
 		"UpdatePeriod": 5000
 	}
     snapshortPeriod = 86400
