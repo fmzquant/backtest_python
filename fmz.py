@@ -869,7 +869,7 @@ class Chart(object):
     def reset(self, keep=0):
         self.lib.api_Chart_Reset(self.ctx, keep)
 
-def periodToSeconds(s, default):
+def periodToMs(s, default):
     period = default
     if len(s) == 0:
         return period
@@ -896,8 +896,8 @@ def parseTask(s):
             v = arr[1].strip()
             dic[k] = v
     pnl = dic.get('pnl', 'true')
-    period = periodToSeconds(dic.get('period', '1h'), 60000 * 60)
-    basePeriod = periodToSeconds(dic.get('basePeriod', ''), 0)
+    period = periodToMs(dic.get('period', '1h'), 60000 * 60)
+    basePeriod = periodToMs(dic.get('basePeriod', ''), 0)
 
     exchanges = []
     for e in json.loads(dic.get('exchanges', '[]')):
@@ -906,15 +906,15 @@ def parseTask(s):
             arr.append('CNY' if 'CTP' in e['eid'] else 'USD')
         if basePeriod == 0:
             basePeriod = 60000 * 60
-            if periodStr == '1d':
+            if period == 86400000:
                 basePeriod = 60000 * 60
-            elif periodStr == '1h' or periodStr == '60m':
+            elif period == 3600000:
                 basePeriod = 60000 * 30
-            elif periodStr == '30m':
+            elif period == 1800000:
                 basePeriod = 60000 * 15
-            elif periodStr == '15m':
+            elif period == 900000:
                 basePeriod = 60000 * 5
-            elif periodStr == '5m':
+            elif period == 300000:
                 basePeriod = 60000
         feeDef = {
             'OKCoin_EN': [150, 200],
