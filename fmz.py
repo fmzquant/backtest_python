@@ -1466,7 +1466,7 @@ class DummySession():
     def shutdown(self, *args):
         pass
 
-def get_bars(symbol, unit='1d', start=None, end=None, count=200):
+def get_bars(symbol, unit='1d', start=None, end=None, count=1000):
     if hasattr(unit, 'endswith'):
         if unit.endswith('d'):
             unit = int(unit[:-1]) * 1440
@@ -1489,7 +1489,7 @@ def get_bars(symbol, unit='1d', start=None, end=None, count=200):
             ts_to = 0
         else:
             ts_from = ts_to-(unit*100*(count+10))
-    params = {"symbol": symbol, "resolution": unit, "from": ts_from, "to": ts_to}
+    params = {"symbol": symbol, "resolution": unit, "from": ts_from, "to": ts_to, "size": count}
     data = json.loads(httpGet("http://"+ CLUSTER_IP + "/chart/history?"+urlencode(params), CLUSTER_DOMAIN))
     try:
         import pandas as pd
