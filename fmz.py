@@ -639,6 +639,9 @@ class Exchange:
         self.lib.api_Exchange_GetUSDCNY.restype = ctypes.c_double
         return self.lib.api_Exchange_GetUSDCNY(self.ctx, self.idx)
 
+    def SetMaxBarLen(self, n):
+        self.maxBarLen = n
+
     def SetPrecision(self, a, b):
         pass
 
@@ -1041,7 +1044,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "69eb1a08d8536844e11e9c684bf36b74" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "f9a3f60afac42471865f1e2cfeb13cc2" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
