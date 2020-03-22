@@ -577,7 +577,7 @@ class _TRADE(_CSTRUCT):
             ("Type", ctypes.c_uint)] 
 
 class _POSITION(_CSTRUCT):
-    _fields_ = [("MarginLevel", ctypes.c_ulonglong), 
+    _fields_ = [("MarginLevel", ctypes.c_double), 
             ("Amount", ctypes.c_double), 
             ("FrozenAmount", ctypes.c_double), 
             ("Price", ctypes.c_double), 
@@ -1044,7 +1044,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "f9a3f60afac42471865f1e2cfeb13cc2" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "8a877b928209750b0365339ea60815df" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
