@@ -816,6 +816,9 @@ class Exchange:
     def GetContractType(self):
         return self.ct
 
+    def GetPeriod(self):
+        return int(self.period/1000)
+
     def SetContractType(self, symbol):
         r = ctypes.c_char_p()
         ret = self.lib.api_Exchange_SetContractType(self.ctx, self.idx, safe_str(symbol), ctypes.byref(r))
@@ -1047,7 +1050,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "50b9072a0428fc8cde0ff0295eef7922" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "8a3d20dfb376ad439a9ac060140f7f42" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
