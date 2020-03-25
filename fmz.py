@@ -813,6 +813,9 @@ class Exchange:
             EOF()
         return ret == API_ERR_SUCCESS
 
+    def GetContractType(self):
+        return self.ct
+
     def SetContractType(self, symbol):
         r = ctypes.c_char_p()
         ret = self.lib.api_Exchange_SetContractType(self.ctx, self.idx, safe_str(symbol), ctypes.byref(r))
