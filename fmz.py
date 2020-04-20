@@ -51,6 +51,9 @@ def hasattr(obj, method):
 
 if isPython3:
     gg['xrange'] = range
+    string_types = str
+else:
+    string_types = basestring
 
 def json_loads(s):
     if isPython3:
@@ -524,10 +527,11 @@ class _CSTRUCT(ctypes.Structure):
     def toObj(self):
         obj = {}
         for k, t in self._fields_:
-            v = getattr(self, k)
-            if isinstance(v, bytes):
-                v = v.decode()
-            obj[k] = v
+            if k[0].isupper():
+                v = getattr(self, k)
+                if isinstance(v, bytes):
+                    v = v.decode()
+                obj[k] = v
         return dic2obj(obj)
 
 class _TICKER(_CSTRUCT):
@@ -538,7 +542,10 @@ class _TICKER(_CSTRUCT):
             ("Buy", ctypes.c_double), 
             ("Last", ctypes.c_double), 
             ("Volume", ctypes.c_double),
-            ("OpenInterest", ctypes.c_double)]
+            ("OpenInterest", ctypes.c_double),
+            ("data", ctypes.c_char_p),
+            ("data_size", ctypes.c_uint),
+            ]
 
 class _RECORD(_CSTRUCT):
     _fields_ = [("Time", ctypes.c_ulonglong), 
@@ -673,6 +680,20 @@ class Exchange:
                     eles.append(group_array[i].toObj())
                 self.lib.api_free(buf_ptr)
             return eles
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
+
+    def SetData(self, name, data):
+        if not isinstance(data, string_types):
+            data = json.dumps(data)
+        return self.lib.api_Exchange_SetData(self.ctx, self.idx, safe_str(name), safe_str(data))
+
+    def GetData(self, name):
+        r = _TICKER()
+        ret = self.lib.api_Exchange_GetData(self.ctx, self.idx, ctypes.byref(r), safe_str(name))
+        if ret == API_ERR_SUCCESS:
+            return dic2obj({'Time': r.Time, 'Data': json.loads(r.data[:r.data_size]) if r.data_size > 0 else None})
         elif ret == API_ERR_FAILED:
             return None
         EOF()
@@ -1050,7 +1071,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "4c81820832ecfc4646693c9f2bf39eaf" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "f061056177984791a945a008059e90ef" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
