@@ -689,9 +689,9 @@ class Exchange:
             data = json.dumps(data)
         return self.lib.api_Exchange_SetData(self.ctx, self.idx, safe_str(name), safe_str(data))
 
-    def GetData(self, name):
+    def GetData(self, name, timeout=60000):
         r = _TICKER()
-        ret = self.lib.api_Exchange_GetData(self.ctx, self.idx, ctypes.byref(r), safe_str(name))
+        ret = self.lib.api_Exchange_GetData(self.ctx, self.idx, ctypes.byref(r), safe_str(name), int(timeout))
         if ret == API_ERR_SUCCESS:
             return dic2obj({'Time': r.Time, 'Data': json.loads(r.data[:r.data_size]) if r.data_size > 0 else None})
         elif ret == API_ERR_FAILED:
@@ -1071,7 +1071,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "6c2a37c1ff53781a5ed86f55a407b08d" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "03c51154ab0aa99c68ea483b5158a48e" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
