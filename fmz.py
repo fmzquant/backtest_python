@@ -662,6 +662,12 @@ class Exchange:
     def SetTimeout(self, ms):
         pass
 
+    def SetBase(self, s):
+        pass
+
+    def SetCurrency(self, s):
+        return self.lib.api_Exchange_SetCurrency(self.ctx, self.idx, safe_str(s))
+
     def SetRate(self, rate=1.0):
         self.lib.api_Exchange_SetRate.restype = ctypes.c_double
         return self.lib.api_Exchange_SetRate(self.ctx, self.idx, ctypes.c_double(rate))
@@ -708,6 +714,8 @@ class Exchange:
         EOF()
 
     def IO(self, k, v = 0):
+        if k == 'currency':
+            return self.SetCurrency(v)
         return self.lib.api_Exchange_IO(self.ctx, self.idx, safe_str(k), int(v))
 
     def GetDepth(self):
@@ -1071,7 +1079,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "9e742148f26023e62932a6856258de82" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "ffd5f655225b93d92c7055a9ebc14144" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
