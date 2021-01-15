@@ -1351,6 +1351,124 @@ class VCtx(object):
         d = pow(10, precision)
         return int(n*d) / float(d)
 
+    def Show(self):
+        import matplotlib.pyplot as plt
+        from matplotlib import ticker
+        try:
+            from IPython import get_ipython
+            get_ipython().run_line_magic('matplotlib', 'inline')
+            from pandas.plotting import register_matplotlib_converters
+            register_matplotlib_converters()
+        except:
+            pass
+
+
+        def data_clean(self):
+            try:
+                data = json.loads(self.Join().decode('utf-8'))['Snapshorts']
+            except:
+                return
+            dic = {}
+            dic['timeStamp'] = []
+            dic['assets'] = []
+            dic['surplus'] = []
+            dic['loss'] = []
+            dic['moneyUse'] = []
+            dic['unit'] = ''
+            lastAssets = 0
+            for i in data:
+                dic['timeStamp'].append(datetime.datetime.fromtimestamp(i[0]/1000).date())
+                assets = 0
+                moneyUse = 0
+                if i[1]:
+                    for ex in i[1]:
+                        position = ex['Symbols']
+                        if position:
+                            margin = 0
+                            profit = 0
+                            holdSpot = 0
+                            for code in position:
+                                if 'Long' in position[code]:
+                                    long = position[code]['Long']
+                                    margin += long['Margin']
+                                    profit += long['Profit']
+                                if 'Short' in position[code]:
+                                    short = position[code]['Short']
+                                    margin += short['Margin']
+                                    profit += short['Profit']
+                                if 'Stocks' in position[code]:
+                                    holdSpot += (position[code]['Stocks'] + position[code]['FrozenStocks']) * position[code]['Last']
+
+                            if ex['QuoteCurrency'] == 'CNY':
+                                assets += ex['Balance'] + ex['FrozenBalance'] + profit + margin
+                                moneyUse += margin / assets
+                                dic['unit'] = '(￥)'
+                            elif 'Futures_' in ex['Id']:
+                                assets += ex['Stocks'] + ex['FrozenStocks'] + profit + margin
+                                moneyUse += margin / assets
+                                dic['unit'] = '(BTC)'
+                            else:
+                                assets += ex['Balance'] + holdSpot
+                                moneyUse += holdSpot / (holdSpot + ex['Balance'])
+                                dic['unit'] = '($)'
+                dic['assets'].append(assets)
+                dic['moneyUse'].append(moneyUse)
+                if lastAssets != 0:
+                    assetsDiff = assets - lastAssets
+                    if assetsDiff > 0:
+                        dic['surplus'].append(assetsDiff)
+                        dic['loss'].append(0)
+                    elif assetsDiff < 0:
+                        dic['surplus'].append(0)
+                        dic['loss'].append(assetsDiff)
+                    else:
+                        dic['surplus'].append(0)
+                        dic['loss'].append(0)
+                else:
+                    dic['surplus'].append(0)
+                    dic['loss'].append(0)
+                lastAssets = assets
+            return dic
+
+        # plt.rcParams['font.sans-serif']=['SimHei']
+        plt.rcParams['axes.unicode_minus']=False 
+        
+        # test
+        data = data_clean(self)
+        if data:
+            x = data['timeStamp']
+            assets = data['assets']
+            surplus = data['surplus']
+            loss = data['loss']
+            moneyUse = data['moneyUse']
+            unit = data['unit']
+
+            plt.figure(figsize=(14, 8))
+            plt.subplots_adjust(left=0.090, right=0.930)
+            plt.subplots_adjust(hspace=0, wspace=0) 
+            ax = plt.subplot(311) 
+            plt.title(u'Backtest', fontsize=18) 
+            plt.grid(linestyle='--', color='#D9D9D9')  
+            plt.plot(x, assets, color='#3A859E', label=f'Equity {unit}')
+            plt.fill_between(x, min(assets), assets, color='#D0DBE8', alpha=.5)
+            plt.legend(loc='upper left')
+            ax = plt.subplot(312)
+            plt.grid(linestyle='--', color='#D9D9D9')
+            plt.bar(x, surplus, color='r') 
+            plt.bar(x, loss, color='g') 
+            plt.legend(loc='upper left', labels=[f'Win{unit}', f'Loss{unit}'])
+            
+            ax = plt.subplot(313)
+            plt.grid(linestyle='--', color='#D9D9D9')
+            plt.plot(x, moneyUse, color='#EBB000', label='Utilization')
+            ax.yaxis.set_major_formatter(ticker.PercentFormatter(xmax=1, decimals=1))
+            plt.fill_between(x, 0, moneyUse, color='#FFFBEB', alpha=.5)
+            plt.legend(loc='upper left')
+            # plt.get_current_fig_manager().full_screen_toggle()
+            plt.show()
+        else:
+            print('No data')
+
     def Join(self, report=False):
         self.gs.acquire()
         if self._joinResult is None:
