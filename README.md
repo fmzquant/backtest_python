@@ -28,6 +28,7 @@ task = VCtx(__doc__) # initialize backtest engine from __doc__
 print(exchange.GetAccount())
 print(exchange.GetTicker())
 print(task.Join(True)) # print backtest result
+task.Show() # or show backtest chart
 ```
 
 The config string can be generated automatically by saving the backtest configuration in the strategy edit page.
