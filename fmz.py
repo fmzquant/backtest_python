@@ -1402,7 +1402,7 @@ class VCtx(object):
                             if ex['QuoteCurrency'] == 'CNY':
                                 assets += ex['Balance'] + ex['FrozenBalance'] + profit + margin
                                 moneyUse += margin / assets
-                                dic['unit'] = '(￥)'
+                                dic['unit'] = '(CNY)'
                             elif 'Futures_' in ex['Id']:
                                 assets += ex['Stocks'] + ex['FrozenStocks'] + profit + margin
                                 moneyUse += margin / assets
@@ -1410,7 +1410,7 @@ class VCtx(object):
                             else:
                                 assets += ex['Balance'] + holdSpot
                                 moneyUse += holdSpot / (holdSpot + ex['Balance'])
-                                dic['unit'] = '($)'
+                                dic['unit'] = '(USD)'
                 dic['assets'].append(assets)
                 dic['moneyUse'].append(moneyUse)
                 if lastAssets != 0:
@@ -1449,14 +1449,14 @@ class VCtx(object):
             ax = plt.subplot(311) 
             plt.title(u'Backtest', fontsize=18) 
             plt.grid(linestyle='--', color='#D9D9D9')  
-            plt.plot(x, assets, color='#3A859E', label=f'Equity {unit}')
+            plt.plot(x, assets, color='#3A859E', label=u'Equity ' + unit)
             plt.fill_between(x, min(assets), assets, color='#D0DBE8', alpha=.5)
             plt.legend(loc='upper left')
             ax = plt.subplot(312)
             plt.grid(linestyle='--', color='#D9D9D9')
             plt.bar(x, surplus, color='r') 
             plt.bar(x, loss, color='g') 
-            plt.legend(loc='upper left', labels=[f'Win{unit}', f'Loss{unit}'])
+            plt.legend(loc='upper left', labels=[u'Win' + unit, u'Loss' + unit])
             
             ax = plt.subplot(313)
             plt.grid(linestyle='--', color='#D9D9D9')
