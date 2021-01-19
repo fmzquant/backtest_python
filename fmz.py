@@ -56,6 +56,8 @@ else:
     string_types = basestring
 
 def json_loads(s):
+    if s.decode('utf-8') == '':
+        return {}
     if isPython3:
         return json.loads(s.decode('utf-8'))
     return json.loads(s)
