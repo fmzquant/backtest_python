@@ -1449,7 +1449,7 @@ class VCtx(object):
             ax = plt.subplot(311) 
             plt.title(u'Backtest', fontsize=18) 
             plt.grid(linestyle='--', color='#D9D9D9')  
-            plt.plot(x, assets, color='#3A859E', label=u'Equity ' + unit)
+            plt.plot(x, assets, color='#3A859E', label=u'Equity %s %f' % (unit, assets[-1]))
             plt.fill_between(x, min(assets), assets, color='#D0DBE8', alpha=.5)
             plt.legend(loc='upper left')
             ax = plt.subplot(312)
