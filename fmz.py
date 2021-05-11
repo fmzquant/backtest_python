@@ -666,7 +666,11 @@ class Exchange:
         pass
 
     def SetCurrency(self, s):
-        return self.lib.api_Exchange_SetCurrency(self.ctx, self.idx, safe_str(s))
+        arr = s.split('_')
+        if len(arr) == 2:
+            self.currency = s
+            self.quoteCurrency = arr[1]
+            return self.lib.api_Exchange_SetCurrency(self.ctx, self.idx, safe_str(s))
 
     def SetRate(self, rate=1.0):
         self.lib.api_Exchange_SetRate.restype = ctypes.c_double
@@ -756,7 +760,7 @@ class Exchange:
                 for i in range(0, n):
                     eles.append(group_array[i].toObj())
                 self.lib.api_free(buf_ptr)
-            k = '%s/%d' % (self.ct, period)
+            k = '%s/%s/%d' % (self.currency, self.ct, period)
             c = self.records_cache.get(k, None)
             if c is None or len(c) == 0:
                 self.records_cache[k] = eles[len(eles)-self.maxBarLen:]
