@@ -967,7 +967,7 @@ def parseTask(s):
             'Futures_OKCoin': [30, 30],
             'Futures_HuobiDM': [30, 30],
             'Futures_CTP': [25, 25],
-            'Futures_LTS': [30, 130],
+            'Futures_XTP': [30, 130],
         }
 
         fee = e.get('fee')
@@ -1083,7 +1083,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "aa97d5de2c34b61b1412bd5feb4bdb85" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "f7fd5501702146ee378fcc8cccc7636f" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1506,7 +1506,7 @@ class VCtx(object):
             stocks = acc['Stocks'] + acc['FrozenStocks']
             commission = acc.get('Commission', 0)
             symbols = acc['Symbols']
-            if eid == 'Futures_CTP' or eid == 'Futures_LTS':
+            if eid == 'Futures_CTP' or eid == 'Futures_XTP':
                 if symbols:
                     for s in symbols:
                         pos = acc['Symbols'][s]
@@ -1532,7 +1532,7 @@ class VCtx(object):
                 pnl.append([close, balance, stocks, commission, balance+(stocks*close)])
             index.append(pd.Timestamp(ele[0], unit='ms', tz='Asia/Shanghai'))
         columns=["close", "balance", "stocks", "fee", "net"]
-        if eid == 'Futures_CTP' or eid == 'Futures_LTS':
+        if eid == 'Futures_CTP' or eid == 'Futures_XTP':
             columns=["balance", "fee", "net"]
         elif 'Futures_' in eid:
             columns=["stocks", "fee", "net"]
