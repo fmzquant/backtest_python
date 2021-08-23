@@ -1384,40 +1384,45 @@ class VCtx(object):
             dic['unit'] = ''
             lastAssets = 0
             for i in data:
-                dic['timeStamp'].append(datetime.datetime.fromtimestamp(i[0]/1000).date())
+                if not i[1]:
+                    continue
                 assets = 0
                 moneyUse = 0
-                if i[1]:
-                    for ex in i[1]:
-                        position = ex['Symbols']
-                        if position:
-                            margin = 0
-                            profit = 0
-                            holdSpot = 0
-                            for code in position:
-                                if 'Long' in position[code]:
-                                    long = position[code]['Long']
-                                    margin += long['Margin']
-                                    profit += long['Profit']
-                                if 'Short' in position[code]:
-                                    short = position[code]['Short']
-                                    margin += short['Margin']
-                                    profit += short['Profit']
-                                if 'Stocks' in position[code]:
-                                    holdSpot += (position[code]['Stocks'] + position[code]['FrozenStocks']) * position[code]['Last']
+                hasTicker = False
+                for ex in i[1]:
+                    position = ex['Symbols']
+                    if position:
+                        hasTicker = True
+                        margin = 0
+                        profit = 0
+                        holdSpot = 0
+                        for code in position:
+                            if 'Long' in position[code]:
+                                long = position[code]['Long']
+                                margin += long['Margin']
+                                profit += long['Profit']
+                            if 'Short' in position[code]:
+                                short = position[code]['Short']
+                                margin += short['Margin']
+                                profit += short['Profit']
+                            if 'Stocks' in position[code]:
+                                holdSpot += (position[code]['Stocks'] + position[code]['FrozenStocks']) * position[code]['Last']
 
-                            if ex['QuoteCurrency'] == 'CNY':
-                                assets += ex['Balance'] + ex['FrozenBalance'] + profit + margin
-                                moneyUse += margin / assets
-                                dic['unit'] = '(CNY)'
-                            elif 'Futures_' in ex['Id']:
-                                assets += ex['Stocks'] + ex['FrozenStocks'] + profit + margin
-                                moneyUse += margin / assets
-                                dic['unit'] = '(BTC)'
-                            else:
-                                assets += ex['Balance'] + holdSpot
-                                moneyUse += holdSpot / (holdSpot + ex['Balance'])
-                                dic['unit'] = '(USD)'
+                        if ex['QuoteCurrency'] == 'CNY':
+                            assets += ex['Balance'] + ex['FrozenBalance'] + profit + margin
+                            moneyUse += margin / assets
+                            dic['unit'] = '(CNY)'
+                        elif 'Futures_' in ex['Id']:
+                            assets += ex['Stocks'] + ex['FrozenStocks'] + profit + margin
+                            moneyUse += margin / assets
+                            dic['unit'] = '(BTC)'
+                        else:
+                            assets += ex['Balance'] + holdSpot
+                            moneyUse += holdSpot / (holdSpot + ex['Balance'])
+                            dic['unit'] = '(USD)'
+                if not hasTicker:
+                    continue
+                dic['timeStamp'].append(datetime.datetime.fromtimestamp(i[0]/1000).date())
                 dic['assets'].append(assets)
                 dic['moneyUse'].append(moneyUse)
                 if lastAssets != 0:
