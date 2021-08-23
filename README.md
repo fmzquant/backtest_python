@@ -21,7 +21,7 @@ pip3 install https://github.com/fmzquant/backtest_python/archive/master.zip
 start: 2018-02-19 00:00:00
 end: 2018-03-22 12:00:00
 period: 15m
-exchanges: [{"eid":"OKEX","currency":"LTC_BTC","balance":3,"stocks":0}]
+exchanges: [{"eid":"Bitfinex","currency":"BTC_USD","balance":10000,"stocks":0}]
 '''
 from fmz import *
 task = VCtx(__doc__) # initialize backtest engine from __doc__
