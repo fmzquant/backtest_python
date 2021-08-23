@@ -1372,7 +1372,7 @@ class VCtx(object):
 
         def data_clean(self):
             try:
-                data = json.loads(self.Join().decode('utf-8'))['Snapshorts']
+                data = json.loads(self.Join().decode('utf-8'))
             except:
                 return
             dic = {}
@@ -1383,19 +1383,22 @@ class VCtx(object):
             dic['moneyUse'] = []
             dic['unit'] = ''
             lastAssets = 0
-            for i in data:
+            for i in data['Snapshorts']:
                 if not i[1]:
                     continue
                 assets = 0
                 moneyUse = 0
                 hasTicker = False
-                for ex in i[1]:
-                    position = ex['Symbols']
+                for pos in range(0, len(i[1])):
+                    item = i[1][pos]
+                    acc = data['Task']['Exchanges'][pos]
+                    position = item['Symbols']
                     if position:
                         hasTicker = True
                         margin = 0
                         profit = 0
                         holdSpot = 0
+                        diffSpot = 0
                         for code in position:
                             if 'Long' in position[code]:
                                 long = position[code]['Long']
@@ -1407,18 +1410,19 @@ class VCtx(object):
                                 profit += short['Profit']
                             if 'Stocks' in position[code]:
                                 holdSpot += (position[code]['Stocks'] + position[code]['FrozenStocks']) * position[code]['Last']
+                                diffSpot += (position[code]['Stocks'] + position[code]['FrozenStocks'] - acc['Stocks']) * position[code]['Last']
 
-                        if ex['QuoteCurrency'] == 'CNY':
-                            assets += ex['Balance'] + ex['FrozenBalance'] + profit + margin
+                        if item['QuoteCurrency'] == 'CNY':
+                            assets += item['Balance'] + item['FrozenBalance'] + profit + margin
                             moneyUse += margin / assets
                             dic['unit'] = '(CNY)'
-                        elif 'Futures_' in ex['Id']:
-                            assets += ex['Stocks'] + ex['FrozenStocks'] + profit + margin
+                        elif 'Futures_' in item['Id']:
+                            assets += item['Stocks'] + item['FrozenStocks'] + profit + margin
                             moneyUse += margin / assets
                             dic['unit'] = '(BTC)'
                         else:
-                            assets += ex['Balance'] + holdSpot
-                            moneyUse += holdSpot / (holdSpot + ex['Balance'])
+                            assets += item['Balance'] + item['FrozenBalance'] + holdSpot
+                            moneyUse += abs(diffSpot) / assets
                             dic['unit'] = '(USD)'
                 if not hasTicker:
                     continue
@@ -1683,3 +1687,4 @@ if __name__ == '__main__':
         session = DummySession()
     if session is not None:
         Backtest(__cfg__, session).Run()
+
