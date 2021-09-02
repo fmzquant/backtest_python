@@ -1083,7 +1083,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "f7fd5501702146ee378fcc8cccc7636f" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "f0e891217a86d8cacab48ef7ce6f1379" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1687,4 +1687,5 @@ if __name__ == '__main__':
         session = DummySession()
     if session is not None:
         Backtest(__cfg__, session).Run()
+
 
