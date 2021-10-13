@@ -1417,9 +1417,14 @@ class VCtx(object):
                             moneyUse += margin / assets
                             dic['unit'] = '(CNY)'
                         elif 'Futures_' in item['Id']:
-                            assets += item['Stocks'] + item['FrozenStocks'] + profit + margin
-                            moneyUse += margin / assets
-                            dic['unit'] = '(BTC)'
+                            if item['QuoteCurrency'] == 'USDT':
+                                assets += item['Balance'] + item['FrozenBalance'] + profit + margin
+                                moneyUse += margin / assets
+                                dic['unit'] = '(USDT)'
+                            else:
+                                assets += item['Stocks'] + item['FrozenStocks'] + profit + margin
+                                moneyUse += margin / assets
+                                dic['unit'] = '(%s)' % (item["BaseCurrency"], )
                         else:
                             assets += item['Balance'] + item['FrozenBalance'] + holdSpot
                             moneyUse += abs(diffSpot) / assets
@@ -1515,7 +1520,9 @@ class VCtx(object):
             stocks = acc['Stocks'] + acc['FrozenStocks']
             commission = acc.get('Commission', 0)
             symbols = acc['Symbols']
+            balanceName = 'stocks'
             if eid == 'Futures_CTP' or eid == 'Futures_XTP':
+                balanceName = 'balance'
                 if symbols:
                     for s in symbols:
                         pos = acc['Symbols'][s]
@@ -1524,13 +1531,21 @@ class VCtx(object):
                                 balance += pos[t]['Margin'] + pos[t]['Profit']
                 pnl.append([acc['Balance'] + acc['FrozenBalance'], commission, balance])
             elif 'Futures_' in eid:
+                marginNet = .0
+                asset = .0
                 if symbols:
                     for s in symbols:
                         pos = acc['Symbols'][s]
                         for t in ['Long', 'Short']:
                             if t in pos:
-                                stocks += pos[t]['Margin'] + pos[t]['Profit']
-                pnl.append([acc['Stocks'] + acc['FrozenStocks'], commission, stocks])
+                                marginNet += pos[t]['Margin'] + pos[t]['Profit']
+                if acc['QuoteCurrency'] == 'USDT':
+                    balanceName = 'USDT'
+                    asset = balance
+                else:
+                    balanceName = acc['BaseCurrency']
+                    asset = stocks
+                pnl.append([asset, commission, asset+marginNet])
             else:
                 if symbol is None and symbols:
                     for s in acc['Symbols']:
@@ -1541,10 +1556,8 @@ class VCtx(object):
                 pnl.append([close, balance, stocks, commission, balance+(stocks*close)])
             index.append(pd.Timestamp(ele[0], unit='ms', tz='Asia/Shanghai'))
         columns=["close", "balance", "stocks", "fee", "net"]
-        if eid == 'Futures_CTP' or eid == 'Futures_XTP':
-            columns=["balance", "fee", "net"]
-        elif 'Futures_' in eid:
-            columns=["stocks", "fee", "net"]
+        if 'Futures_' in eid:
+            columns=[balanceName, "fee", "net"]
         return pd.DataFrame(pnl, index=index, columns=columns)
 
 class Backtest():
