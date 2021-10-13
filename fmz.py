@@ -1512,6 +1512,7 @@ class VCtx(object):
         index = []
         symbol = None
         eid = None
+        balanceName = 'stocks'
         for ele in ret['Snapshorts']:
             acc = ele[1][0]
             close = float('nan')
@@ -1520,7 +1521,6 @@ class VCtx(object):
             stocks = acc['Stocks'] + acc['FrozenStocks']
             commission = acc.get('Commission', 0)
             symbols = acc['Symbols']
-            balanceName = 'stocks'
             if eid == 'Futures_CTP' or eid == 'Futures_XTP':
                 balanceName = 'balance'
                 if symbols:
