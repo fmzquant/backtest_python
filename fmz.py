@@ -34,6 +34,8 @@ try:
 except:
     from urllib.parse import urlencode
 
+DATASERVER = os.getenv("DATASERVER", "http://q.fmz.com")
+
 isPython3 = sys.version_info[0] >= 3
 gg = globals()
 gg['NaN'] = None
@@ -65,8 +67,6 @@ def safe_str(s):
         return s.encode('utf-8')
     return str(s)
 
-CLUSTER_IP = os.getenv("CLUSTER_IP", "q.fmz.com")
-CLUSTER_DOMAIN = os.getenv("CLUSTER_DOMAIN", "q.fmz.com")
 
 BT_Status = 1 << 0
 BT_Symbols = 1 << 1
@@ -87,11 +87,9 @@ def getCacheDir():
             pass
     return tmpCache
 
-def httpGet(url, customHost=None):
+def httpGet(url):
     req = urllib2.Request(url)
     req.add_header('Accept-Encoding', 'gzip, deflate')
-    if customHost is not None:
-        req.add_header('Host', customHost)
     resp = urllib2.urlopen(req)
     data = resp.read()
     if resp.info().get('Content-Encoding') == 'gzip':
@@ -977,29 +975,30 @@ def parseTask(s):
             fee = [int(fee[0]*1000), int(fee[1]*1000)]
 
         cfg = {
-		"Balance": e.get('balance', 10000.0),
-		"BaseCurrency": arr[0],
-		"BasePeriod": basePeriod,
-		"BasePrecision": 4,
-		"DepthDeep": 5,
-		"DepthAmount": 20,
-		"FaultTolerant": 0,
-		"FeeDenominator": 5,
-		"FeeMaker": fee[0],
-		"FeeTaker": fee[1],
-		"FeeMin": e.get('feeMin', 0),
-		"Id": e['eid'],
-		"Label": e['eid'],
-		"PriceTick": 1e-05,
-		"QuoteCurrency": arr[1],
-		"QuotePrecision": 8,
-		"SlipPoint": 0,
-		"Stocks": e.get('stocks', 3.0)
-	}
-        if e['eid'] == 'Futures_CTP':
+            "Balance": e.get('balance', 10000.0),
+            "BaseCurrency": arr[0],
+            "BasePeriod": basePeriod,
+            "BasePrecision": 4,
+            "DepthDeep": 5,
+            "DepthAmount": 20,
+            "FaultTolerant": 0,
+            "FeeDenominator": 5,
+            "FeeMaker": fee[0],
+            "FeeTaker": fee[1],
+            "FeeMin": e.get('feeMin', 0),
+            "Id": e['eid'],
+            "Label": e['eid'],
+            "PriceTick": 1e-05,
+            "QuoteCurrency": arr[1],
+            "QuotePrecision": 8,
+            "SlipPoint": 0,
+            "Stocks": e.get('stocks', 3.0)
+        }
+        if e['eid'] == 'Futures_CTP' or e['eid'] == 'Futures_XTP':
             cfg['BasePrecision'] = 0
             cfg['QuotePrecision'] = 1
             cfg['DepthDeep'] = 1
+            cfg['Stocks'] = .0
         elif e['eid'] == 'Futures_OKCoin' or e['eid'] == 'Futures_HuobiDM':
             cfg['BasePrecision'] = 0
             cfg['QuotePrecision'] = 5
@@ -1023,7 +1022,7 @@ def parseTask(s):
         exchanges.append(cfg)
 
     options = {
-		"DataServer": CLUSTER_DOMAIN,
+        "DataServer": DATASERVER,
 		"MaxChartLogs": 800,
 		"MaxProfitLogs": 800,
 		"MaxRuntimeLogs": 800,
@@ -1083,7 +1082,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "1faabbc11c0694b14fee95b888c6a280" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "d2d14de14d0fe4a4300ced297c7f87e5" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1100,8 +1099,8 @@ class VCtx(object):
                     except:
                         pass
             if update:
-                open(loader, 'wb').write(httpGet("http://" + CLUSTER_IP + "/dist/depends/" + soName, CLUSTER_DOMAIN))
-                open(js, 'wb').write(httpGet("http://" + CLUSTER_IP + "/dist/depends/md5.json", CLUSTER_DOMAIN))
+                open(loader, 'wb').write(httpGet(task["Options"]["DataServer"] + "/dist/depends/" + soName))
+                open(js, 'wb').write(httpGet(task["Options"]["DataServer"] + "/dist/depends/md5.json"))
         #declare
         lib = ctypes.CDLL(loader)
         lib.api_backtest.restype = ctypes.c_void_p
@@ -1179,7 +1178,7 @@ class VCtx(object):
             pass
 
     def httpGetCallback(self, path, ptr_buf, ptr_size, ptr_need_free):
-        url = 'http://' + CLUSTER_IP + path.decode('utf8')
+        url = path.decode('utf8')
         tmpCache = getCacheDir()
         cacheFile = tmpCache+'/botvs_kline_'+md5.md5(path).hexdigest()
         data = None
@@ -1188,7 +1187,7 @@ class VCtx(object):
                 data = open(cacheFile, 'rb').read()
                 cacheFile = None
             else:
-                data = httpGet(url, CLUSTER_DOMAIN)
+                data = httpGet(url)
                 if len(data) > 0:
                     open(cacheFile, 'wb').write(data)
         except:
@@ -1388,13 +1387,11 @@ class VCtx(object):
                     continue
                 assets = 0
                 moneyUse = 0
-                hasTicker = False
                 for pos in range(0, len(i[1])):
                     item = i[1][pos]
                     acc = data['Task']['Exchanges'][pos]
                     position = item['Symbols']
                     if position:
-                        hasTicker = True
                         margin = 0
                         profit = 0
                         holdSpot = 0
@@ -1429,8 +1426,6 @@ class VCtx(object):
                             assets += item['Balance'] + item['FrozenBalance'] + holdSpot
                             moneyUse += abs(diffSpot) / assets
                             dic['unit'] = '(USD)'
-                if not hasTicker:
-                    continue
                 dic['timeStamp'].append(datetime.datetime.fromtimestamp(i[0]/1000).date())
                 dic['assets'].append(assets)
                 dic['moneyUse'].append(moneyUse)
@@ -1675,7 +1670,7 @@ def get_bars(symbol, unit='1d', start=None, end=None, count=1000):
         else:
             ts_from = ts_to-(unit*100*(count+10))
     params = {"symbol": symbol, "resolution": unit, "from": ts_from, "to": ts_to, "size": count}
-    data = json.loads(httpGet("http://"+ CLUSTER_IP + "/chart/history?"+urlencode(params), CLUSTER_DOMAIN))
+    data = json.loads(httpGet(DATASERVER+"/chart/history?"+urlencode(params)))
     try:
         import pandas as pd
         from pandas.plotting import register_matplotlib_converters
