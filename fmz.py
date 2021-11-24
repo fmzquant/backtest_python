@@ -1071,9 +1071,9 @@ class VCtx(object):
         self.progessCallbackPtr = ctypes.CFUNCTYPE(None, ctypes.c_char_p)(self.progressCallback)
         osName = platform.system()
         archName = platform.architecture()[0]
-        if osName == 'Linux' and hasattr(os, 'uname') and 'arm' in os.uname()[4]:
-            archName = 'arm'
-        self.os = '%s/%s' % (osName.lower(), 'amd64' if archName == '64bit' else '386')
+        if platform.processor() == "arm":
+            archName = 'arm64' if archName == '64bit' else 'arm'
+        self.os = '%s/%s' % (osName.lower(), archName)
         soName = 'backtest_py_%s_%s.so' % (osName.lower(), archName)
         loader = os.path.join("./depends", soName)
         if not os.path.exists(loader):
@@ -1082,7 +1082,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "d2d14de14d0fe4a4300ced297c7f87e5" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "f2fe7249fcfc0ba18385014dde09e2ad" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1102,7 +1102,7 @@ class VCtx(object):
                 open(loader, 'wb').write(httpGet(task["Options"]["DataServer"] + "/dist/depends/" + soName))
                 open(js, 'wb').write(httpGet(task["Options"]["DataServer"] + "/dist/depends/md5.json"))
         #declare
-        lib = ctypes.CDLL(loader)
+        lib = ctypes.CDLL(os.path.abspath(loader))
         lib.api_backtest.restype = ctypes.c_void_p
         ctx = ctypes.c_void_p(lib.api_backtest(safe_str(json.dumps(task)), self.httpGetPtr, self.progessCallbackPtr))
         if not ctx:
