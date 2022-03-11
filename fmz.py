@@ -34,6 +34,13 @@ try:
 except:
     from urllib.parse import urlencode
 
+
+try:
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
+except:
+    pass
+
 DATASERVER = os.getenv("DATASERVER", "http://q.fmz.com")
 
 isPython3 = sys.version_info[0] >= 3
