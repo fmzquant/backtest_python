@@ -30,16 +30,15 @@ except:
     import urllib.request as urllib2
 
 try:
-    from urllib import urlencode
-except:
-    from urllib.parse import urlencode
-
-
-try:
     import ssl
     ssl._create_default_https_context = ssl._create_unverified_context
 except:
     pass
+
+try:
+    from urllib import urlencode
+except:
+    from urllib.parse import urlencode
 
 DATASERVER = os.getenv("DATASERVER", "http://q.fmz.com")
 
@@ -768,7 +767,9 @@ class Exchange:
             k = '%s/%s/%d' % (self.currency, self.ct, period)
             c = self.records_cache.get(k, None)
             if c is None or len(c) == 0:
-                self.records_cache[k] = eles[len(eles)-self.maxBarLen:]
+                if len(eles) > self.maxBarLen:
+                    eles = eles[len(eles)-self.maxBarLen:]
+                self.records_cache[k] = eles
             else:
                 preTime = 0 if len(c) == 0 else c[-1]['Time']
                 for ele in eles:
@@ -1089,7 +1090,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "b478a6375d423e754fbe2124526e6f7e" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "26216ca337a0b85c74c4416b75fbc336" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
