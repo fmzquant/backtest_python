@@ -965,12 +965,11 @@ def parseTask(s):
             elif period == 300000:
                 basePeriod = 60000
         feeDef = {
-            'OKCoin_EN': [150, 200],
             'Huobi': [150, 200],
-            'OKEX': [150, 200],
+            'OKX': [150, 200],
             'Binance': [150, 200],
             'Futures_BitMEX': [8, 10],
-            'Futures_OKCoin': [30, 30],
+            'Futures_OKX': [30, 30],
             'Futures_HuobiDM': [30, 30],
             'Futures_CTP': [25, 25],
             'Futures_XTP': [30, 130],
@@ -1007,17 +1006,13 @@ def parseTask(s):
             cfg['QuotePrecision'] = 1
             cfg['DepthDeep'] = 1
             cfg['Stocks'] = .0
-        elif e['eid'] == 'Futures_OKCoin' or e['eid'] == 'Futures_HuobiDM':
+        elif e['eid'] == 'Futures_OKX' or e['eid'] == 'Futures_HuobiDM':
             cfg['BasePrecision'] = 0
             cfg['QuotePrecision'] = 5
         elif e['eid'] == 'Bitfinex' or e['eid'] == 'Binance':
             cfg['BasePrecision'] = 4
             cfg['QuotePrecision'] = 4
             cfg['PriceTick'] = 0.001
-        elif e['eid'] == 'OKCoin_EN':
-            cfg['BasePrecision'] = 3
-            cfg['QuotePrecision'] = 3
-            cfg['PriceTick'] = 0.01
         elif e['eid'] == 'Futures_BitMEX':
             cfg['PriceTick'] = 0.5
             bm = cfg['BasePeriod']/60000
@@ -1090,7 +1085,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "283f8e73e4807cbc226c6f5302b4d8c0" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "c8525c42957ecf4da5f4642b92c78636" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
