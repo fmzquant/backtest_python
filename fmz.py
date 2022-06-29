@@ -1085,7 +1085,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "c8525c42957ecf4da5f4642b92c78636" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "9694d386e15e6fd471ece7367b580277" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
