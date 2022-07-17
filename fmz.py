@@ -917,6 +917,249 @@ class Chart(object):
     def reset(self, keep=0):
         self.lib.api_Chart_Reset(self.ctx, keep)
 
+class KLineChart():
+    def __init__(self, lib, ctx, options={}):
+        options["__isCandle"] = True
+        self.chart = Chart(lib, ctx, options)
+        self.bar = None
+        self.overlay = options.get("overlay", False)
+        self.preTime = 0
+        self.runtime = { "plots": [], "signals": [], "titles": {}, "count": 0 }
+        
+    def trim(self, obj):
+        dst = {}
+        for k in obj:
+            if obj[k] is not None:
+                dst[k] = obj[k]
+        return dst
+        
+    def newPlot(self, obj):
+        shape = self.trim(obj)
+        if "overlay" not in shape:
+            shape["overlay"] = self.overlay
+        if shape["type"] != 'shape' and shape["type"] != 'bgcolor' and shape["type"] != 'barcolor':
+            if "title" not in shape or len(shape["title"]) == 0 or shape["title"] in self.runtime["titles"]:
+                shape["title"] = '<' + shape.get("title","plot") + '_' + str(self.runtime["count"]) + '>'
+            self.runtime["count"] += 1
+            if "title" in shape:
+                self.runtime["titles"][shape["title"]] = True
+        return shape
+    
+
+    def begin(self, bar):
+        self.bar = bar
+
+    def reset(self, remain=0):
+        self.chart.reset(remain)
+        self.preTime = 0
+
+    def close(self):
+        if self.bar["Time"] < self.preTime:
+            return
+
+        data = {
+            "timestamp": self.bar["Time"],
+            "open": self.bar["Open"],
+            "high": self.bar["High"],
+            "low": self.bar["Low"],
+            "close": self.bar["Close"],
+            "volume": self.bar.get("Volume", 0),
+        }
+
+        for k in ["plots", "signals"]:
+            if len(self.runtime[k]) > 0:
+                if "runtime" not in data:
+                    data["runtime"] = {}
+                data["runtime"][k] = self.runtime[k]
+
+        if self.preTime == self.bar["Time"]:
+            self.chart.add(0, data, -1)
+        else:
+            self.chart.add(0, data)
+
+        self.preTime = self.bar["Time"]
+        self.runtime["plots"] = []
+        self.runtime["signals"] = []
+        self.runtime["titles"] = {}
+        self.runtime["count"] = 0
+
+    def plot(self, series=None, title=None, color=None, linewidth=1, style="line", trackprice=None, histbase=0, offset=0, join=False, editable=False, show_last=None, display ="all", overlay=None):
+        if series is None or self.bar["Time"] < self.preTime:
+            return
+
+        self.runtime["plots"].append(self.newPlot({
+            "series": series,
+            "overlay": overlay,
+            "title": title,
+            "join": join,
+            "color": color,
+            "histbase": histbase,
+            "type": style,
+            "lineWidth": linewidth,
+            "display": display,
+            "offset": offset
+        }))
+        return len(self.runtime["plots"]) - 1
+
+    def barcolor(self, color, offset=None, editable=False, show_last=None, title=None, display="all"):
+        if display != "all" or self.bar["Time"] < self.preTime:
+            return
+        self.runtime["plots"].append(self.newPlot({
+            "type": 'barcolor',
+            "title": title,
+            "color": color,
+            "offset": offset,
+            "showLast": show_last,
+            "display": display
+        }))
+        
+    def plotarrow(self, series, title=None, colorup="#00ff00",
+        colordown = "#ff0000",
+        offset = 0,
+        minheight = 5,
+        maxheight = 100,
+        editable = False, show_last=None, display = "all", overlay = None):
+        if display != "all" or self.bar["Time"] < self.preTime:
+            return
+
+        self.runtime["plots"].append(self.newPlot({
+            "series": series,
+            "title": title,
+            "colorup": colorup,
+            "colordown": colordown,
+            "offset": offset,
+            "minheight": minheight,
+            "maxheight": maxheight,
+            "showLast": show_last,
+            "type": "shape",
+            "style": "arrow",
+            "display": display,
+            "overlay": overlay
+        }))
+        
+    def hline(self, price, title = None, color = None, linestyle = "dashed", linewidth = None, editable = False, display = "all", overlay = None):
+        if display != "all" or self.bar["Time"] < self.preTime:
+            return
+        
+        self.runtime["plots"].append(self.newPlot({
+            "title": title,
+            "price": price,
+            "overlay": overlay,
+            "color": color,
+            "type": 'hline',
+            "lineStyle": linestyle,
+            "lineWidth": linewidth,
+            "display": display
+        }))
+        return len(self.runtime["plots"]) - 1
+
+
+    def bgcolor(self, color, offset=None, editable=None, show_last=None, title=None, display = "all", overlay=None):
+        if display != "all" or self.bar["Time"] < self.preTime:
+            return
+        self.runtime["plots"].append(self.newPlot({
+                "title": title,
+                "overlay": overlay,
+                "color": color,
+                "type": 'bgcolor',
+                "showLast": show_last,
+                "offset": offset
+            }))
+    
+
+    def plotchar(self, series, title=None, char=None, location = "abovebar", color=None, offset=None, text=None, textcolor=None, editable=None, size = "auto", show_last=None, display="all", overlay=None):
+        if (location != "absolute" and series is None) or (location == "absolute" and series is None) or char is None or self.bar["Time"] < self.preTime:
+            return
+
+        self.runtime["plots"].append(self.newPlot({
+            "overlay": overlay,
+            "type": "shape",
+            "style": "char",
+            "char": char,
+            "series": series,
+            "location": location,
+            "color": color,
+            "offset": offset,
+            "size": size,
+            "text": text,
+            "textColor": textcolor
+        }))
+
+
+ 
+    def plotshape(self, series, title=None, style=None, location="abovebar", color=None, offset=None, text=None, textcolor=None, editable=None, size = "auto", show_last=None, display="all", overlay=None):
+        if (location != "absolute" and series is None) or (location == "absolute" and series is None) or self.bar["Time"] < self.preTime:
+            return
+        
+        self.runtime["plots"].append(self.newPlot({
+            "type": "shape",
+            "overlay": overlay,
+            "title": title,
+            "size": size,
+            "style": style,
+            "series": series,
+            "location": location,
+            "color": color,
+            "offset": offset,
+            "text": text,
+            "textColor": textcolor
+        }))
+
+    def plotcandle(self, open, high, low, close, title=None, color=None, wickcolor=None, editable=None, show_last=None, bordercolor=None, display="all", overlay=None):
+        if display != "all" or self.bar["Time"] < self.preTime:
+            return
+ 
+        self.runtime["plots"].append(self.newPlot({
+            "price": high,
+            "open": open,
+            "high": high,
+            "low": low,
+            "close": close,
+            "title": title,
+            "color": color,
+            "wickColor": wickcolor,
+            "showLast": show_last,
+            "borderColor": bordercolor,
+            "type": "candle",
+            "display": display,
+            "overlay": overlay,
+        }))
+
+    def fill(self, plot1, plot2, color=None, title=None, editable=None, show_last=None, fillgaps=None, display="all"):
+        if self.bar["Time"] < self.preTime:
+            return
+        if plot1 >= 0 and plot2 >= 0 and plot1 < len(self.runtime["plots"]) and plot2 < len(self.runtime["plots"]) and display == "all":
+            dst = self.runtime["plots"][plot1]
+            if "fill" not in dst:
+                dst["fill"] = []
+            dst["fill"].append(self.trim({
+                "value": self.runtime["plots"][plot2]["series"],
+                "color": color,
+                "showLast": show_last
+            }))
+
+    def signal(self, direction, price, qty, id=None):
+        if self.bar["Time"] < self.preTime:
+            return
+        task = {
+            "id": id or direction,
+            "avgPrice": price,
+            "qty": qty
+        }
+        if direction == "buy" or direction == "long":
+            task["direction"] = "long"
+        elif direction == "sell" or direction == "short":
+            task["direction"] = "short"
+        elif direction == "closesell" or direction == "closeshort":
+            task["direction"] = "close"
+            task["closeDirection"] = "short"
+        elif direction == "closebuy" or direction == "closelong":
+            task["direction"] = "close"
+            task["closeDirection"] = "long"
+            
+        if task["direction"] or task["closeDirection"]:
+            self.runtime["signals"].append(task)
+
 def periodToMs(s, default):
     period = default
     if len(s) < 2:
@@ -1085,7 +1328,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "9694d386e15e6fd471ece7367b580277" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "ee932fffe2ef7cfb3ee7dbf3ae4c9174" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1294,6 +1537,9 @@ class VCtx(object):
 
     def g_Chart(self, js):
         return Chart(self.lib, self.ctx, js)
+
+    def g_KLineChart(self, js={}):
+        return KLineChart(self.lib, self.ctx, js)
 
     def g_GetPid(self):
         return os.getpid()
