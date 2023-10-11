@@ -540,6 +540,7 @@ class _CSTRUCT(ctypes.Structure):
 
 class _TICKER(_CSTRUCT):
     _fields_ = [("Time", ctypes.c_ulonglong), 
+            ("Open", ctypes.c_double), 
             ("High", ctypes.c_double), 
             ("Low", ctypes.c_double), 
             ("Sell", ctypes.c_double), 
@@ -1328,7 +1329,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "8aa4838568c72bf2d8a3c3de008f189a" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "a2c225e372350b420410d713e3469f62" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
