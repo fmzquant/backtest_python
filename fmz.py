@@ -68,6 +68,11 @@ def json_loads(s):
         return json.loads(s.decode('utf-8'))
     return json.loads(s)
 
+def b2s(s):
+    if isPython3:
+        return s.decode('utf-8')
+    return s
+
 def safe_str(s):
     if isPython3:
         return s.encode('utf-8')
@@ -668,7 +673,18 @@ class Exchange:
         pass
 
     def SetBase(self, s):
-        pass
+        r = ctypes.c_char_p()
+        self.lib.api_Exchange_SetBase(self.ctx, self.idx, safe_str(s), ctypes.byref(r))
+        detail = b2s(r.value)
+        self.lib.api_free(r)
+        return detail
+
+    def GetBase(self):
+        r = ctypes.c_char_p()
+        self.lib.api_Exchange_GetBase(self.ctx, self.idx, ctypes.byref(r))
+        detail = b2s(r.value)
+        self.lib.api_free(r)
+        return detail
 
     def SetCurrency(self, s):
         arr = s.split('_')
@@ -1329,7 +1345,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "a2c225e372350b420410d713e3469f62" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "feeb271891760c588c57ed0a6dd8b102" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
