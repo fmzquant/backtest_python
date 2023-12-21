@@ -1345,7 +1345,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, 'md5.json')
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "21dc3fac221a039fd726f88d76432c74" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "b106b87acf05b5295567b4a76126e03f" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1620,8 +1620,12 @@ class VCtx(object):
         return '[trans]'+r+'[/trans]'
 
     def g__N(self, n, precision=4):
-        d = pow(10, precision)
-        return int(n*d) / float(d)
+        if precision < 0:
+            precision_factor = 10 ** -precision
+            return n - (n % precision_factor)
+        else:
+            small_factor = 1 / (10 ** (max(10, precision + 5)))
+            return int((n + small_factor) * (10 ** precision)) / (10 ** precision)
 
     def Show(self):
         import matplotlib.pyplot as plt
