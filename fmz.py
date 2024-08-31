@@ -475,7 +475,9 @@ class DummyModule:
         self.__name = name
         sys.modules['talib'] = self
     def __getattr__(self, attr):
-        raise Exception('Please install %s module for python' % self.__name)
+        if attr == '__file__':
+            return 'talib.py'
+        raise Exception('Please install %s module for python (%s)' % (self.__name, attr))
 
 class MyList(list):
     def __init__(self, data):
@@ -1729,23 +1731,22 @@ class VCtx(object):
                                 holdSpot += (position[code]['Stocks'] + position[code]['FrozenStocks']) * position[code]['Last']
                                 diffSpot += (position[code]['Stocks'] + position[code]['FrozenStocks'] - acc['Stocks']) * position[code]['Last']
 
-                        if item['QuoteCurrency'] == 'CNY':
-                            assets += item['Balance'] + item['FrozenBalance'] + profit + margin
-                            moneyUse += margin / assets
-                            dic['unit'] = '(CNY)'
-                        elif 'Futures_' in item['Id']:
-                            if item['QuoteCurrency'] == 'USDT':
-                                assets += item['Balance'] + item['FrozenBalance'] + profit + margin
-                                moneyUse += margin / assets
-                                dic['unit'] = '(USDT)'
+                        for asset in item['Assets']:
+                            if item['QuoteCurrency'] == 'CNY':
+                                assets += asset['Amount'] + asset['FrozenAmount'] + profit + margin
+                                dic['unit'] = '(CNY)'
+                            elif 'Futures_' in item['Id']:
+                                if item['QuoteCurrency'] == 'USDT':
+                                    assets += asset['Amount'] + asset['FrozenAmount'] + profit + margin
+                                    dic['unit'] = '(USDT)'
+                                else:
+                                    assets += asset['Amount'] + asset['FrozenAmount'] + profit + margin
+                                    dic['unit'] = '(%s)' % (item["BaseCurrency"], )
                             else:
-                                assets += item['Stocks'] + item['FrozenStocks'] + profit + margin
-                                moneyUse += margin / assets
-                                dic['unit'] = '(%s)' % (item["BaseCurrency"], )
-                        else:
-                            assets += item['Balance'] + item['FrozenBalance'] + holdSpot
-                            moneyUse += abs(diffSpot) / assets
-                            dic['unit'] = '(USD)'
+                                assets += asset['Amount'] + asset['FrozenAmount'] + holdSpot
+                                margin = abs(diffSpot)
+                                dic['unit'] = '(USD)'
+                            moneyUse += margin / assets if assets != 0 else 0
                 dic['timeStamp'].append(datetime.datetime.fromtimestamp(i[0]/1000).date())
                 dic['assets'].append(assets)
                 dic['moneyUse'].append(moneyUse)
