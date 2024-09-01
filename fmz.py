@@ -548,6 +548,7 @@ class _CSTRUCT(ctypes.Structure):
 
 class _TICKER(_CSTRUCT):
     _fields_ = [("Time", ctypes.c_ulonglong), 
+            ("Symbol", ctypes.c_char * 31),
             ("Open", ctypes.c_double), 
             ("High", ctypes.c_double), 
             ("Low", ctypes.c_double), 
@@ -740,10 +741,30 @@ class Exchange:
         EOF()
 
     def GetTickers(self):
-        return []
+        r_len = ctypes.c_uint(0)
+        buf_ptr = ctypes.c_void_p()
+        ret = self.lib.api_Exchange_GetTickers(self.ctx, self.idx, ctypes.byref(r_len), ctypes.byref(buf_ptr))
+
+        if ret == API_ERR_SUCCESS:
+            n = r_len.value
+            eles = []
+            if n > 0:
+                group_array = (_TICKER * n).from_address(buf_ptr.value)
+                for i in range(0, n):
+                    eles.append(group_array[i].toObj())
+                self.lib.api_free(buf_ptr)
+            return eles
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
 
     def GetMarkets(self):
-        return {}
+        r = ctypes.c_char_p()
+        self.lib.api_Exchange_GetMarkets(self.ctx, self.idx, ctypes.byref(r))
+        ret = json.loads(b2s(r.value))
+        self.lib.api_free(r)
+        return ret
+
 
     def GetTicker(self, symbol=''):
         r = _TICKER()
@@ -1390,7 +1411,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "0effa06859fb56230e100371bc1e1660" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "e9706772f5c5ae0744a2a8dc6cf1e7c1" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
