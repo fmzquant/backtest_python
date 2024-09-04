@@ -642,6 +642,7 @@ class Exchange:
         self.name = cfg["Id"]
         self.label = cfg["Label"]
         self.currency = '%s_%s' % (cfg["BaseCurrency"], cfg["QuoteCurrency"])
+        self.baseCurrency = cfg["BaseCurrency"]
         self.quoteCurrency = cfg["QuoteCurrency"]
         self.maxBarLen = cfg.get('MaxBarLen', 1000)
         self.period = opt['Period']
@@ -659,6 +660,9 @@ class Exchange:
 
     def GetCurrency(self):
         return self.currency
+
+    def GetBaseCurrency(self):
+        return self.baseCurrency
 
     def GetQuoteCurrency(self):
         return self.quoteCurrency
@@ -1411,7 +1415,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "c66b75f41bbb1fc64037623df4b1db92" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "13f63ffb9a01910d28fdcc61098e2220" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1604,7 +1608,19 @@ class VCtx(object):
     def g_Dial(self, *args):
         self.g_LogError("sandbox not support Dial")
 
+    def g_DBExec(self, *args):
+        self.g_LogError("sandbox not support DBExec")
+
+    def g_Encode(self, *args):
+        self.g_LogError("sandbox not support Encode")
+
+    def g_EventLoop(self, *args):
+        self.g_LogError("sandbox not support EventLoop")
+
     def g_Mail(self, *args):
+        return True
+
+    def g_Mail_Go(self, *args):
         return True
 
     def g_GetCommand(self):
@@ -1871,13 +1887,14 @@ class VCtx(object):
             symbols = acc['Symbols']
             if eid == 'Futures_CTP' or eid == 'Futures_XTP':
                 balanceName = 'balance'
+                available = balance
                 if symbols:
                     for s in symbols:
                         pos = acc['Symbols'][s]
                         for t in ['Long', 'Short']:
                             if t in pos:
                                 balance += pos[t]['Margin'] + pos[t]['Profit']
-                pnl.append([acc['Balance'] + acc['FrozenBalance'], commission, balance])
+                pnl.append([available, commission, balance])
             elif 'Futures_' in eid:
                 marginNet = .0
                 asset = .0
@@ -2000,9 +2017,9 @@ class DummySession():
         pass
 
 if __name__ == '__main__':
-    uuid = os.getenv("BOTVS_TASK_UUID")
+    btUUID = os.getenv("BOTVS_TASK_UUID")
     session = None
-    if uuid == 'dummy':
+    if btUUID == 'dummy':
         session = gg['s']
     else:
         session = DummySession()
