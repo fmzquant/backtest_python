@@ -1420,7 +1420,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "0af40e6b08893ffbbd023cdc48ecb55a" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "5d063817216d05c313a7aefa5cf8378c" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1868,66 +1868,14 @@ class VCtx(object):
         ret = json.loads(self._joinResult)
         pnl = []
         index = []
-        symbol = None
-        eid = None
-        balanceName = 'stocks'
+        margin_suffix = ''
         for ele in ret['Snapshots']:
             acc = ele[1][0]
-            close = float('nan')
-            eid = acc['Id']
-            balance = .0
-            stocks = .0
-            commission = .0
-            for asset in acc['Assets']:
-                if acc['QuoteCurrency'] == asset['Currency']:
-                    balance += asset['Amount'] + asset['FrozenAmount']
-                    commission += asset['Commission']
-                elif acc['BaseCurrency'] == asset['Currency']:
-                    stocks += asset['Amount'] + asset['FrozenAmount']
-                else:
-                    info = acc['Symbols'].get(asset['Currency'] + '_' + acc['QuoteCurrency'], None)
-                    if info:
-                        balance += (asset['Amount'] + asset['FrozenAmount']) * info['Last']
-                        commission += asset['Commission'] * info['Last']
-            symbols = acc['Symbols']
-            if eid == 'Futures_CTP' or eid == 'Futures_XTP':
-                balanceName = 'balance'
-                available = balance
-                if symbols:
-                    for s in symbols:
-                        pos = acc['Symbols'][s]
-                        for t in ['Long', 'Short']:
-                            if t in pos:
-                                balance += pos[t]['Margin'] + pos[t]['Profit']
-                pnl.append([available, commission, balance])
-            elif 'Futures_' in eid:
-                marginNet = .0
-                asset = .0
-                if symbols:
-                    for s in symbols:
-                        pos = acc['Symbols'][s]
-                        for t in ['Long', 'Short']:
-                            if t in pos:
-                                marginNet += pos[t]['Margin'] + pos[t]['Profit']
-                if acc['QuoteCurrency'] == 'USDT':
-                    balanceName = 'USDT'
-                    asset = balance
-                else:
-                    balanceName = acc['BaseCurrency']
-                    asset = stocks
-                pnl.append([asset, commission, asset+marginNet])
-            else:
-                if symbol is None and symbols:
-                    for s in acc['Symbols']:
-                        symbol = s
-                        break
-                if symbol is not None:
-                    close = acc['Symbols'][symbol]['Last']
-                pnl.append([close, balance, stocks, commission, balance+(stocks*close)])
+            if not margin_suffix:
+                margin_suffix = '(%s)' % (acc['MarginCurrency'], )
+            pnl.append([acc['PnL'], acc['Utilization']*100])
             index.append(pd.Timestamp(ele[0], unit='ms', tz='Asia/Shanghai'))
-        columns=["close", "balance", "stocks", "fee", "net"]
-        if 'Futures_' in eid:
-            columns=[balanceName, "fee", "net"]
+        columns=["PnL"+margin_suffix, "Utilization(%)"]
         return pd.DataFrame(pnl, index=index, columns=columns)
 
 class Backtest():
