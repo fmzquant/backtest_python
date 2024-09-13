@@ -1336,6 +1336,8 @@ def parseTask(s):
             'Futures_CTP': [25, 25],
             'Futures_XTP': [30, 130],
         }
+        if e['eid'] == "Futures_CTP":
+            dataServer = "http://q.youquant.com"
 
         fee = e.get('fee')
         if fee is None:
@@ -1420,7 +1422,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "5d063817216d05c313a7aefa5cf8378c" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "59e66cf62b8101af944f6a13c99bb638" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
