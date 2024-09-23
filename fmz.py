@@ -923,6 +923,10 @@ class Exchange:
         EOF()
 
     def GetHistoryOrders(self, symbol='', since=0, limit = 0):
+        if isinstance(symbol, int):
+            limit = since
+            since = symbol
+            symbol = ''
         r_len = ctypes.c_uint(0)
         buf_ptr = ctypes.c_void_p()
         ret = self.lib.api_Exchange_GetHistoryOrders(self.ctx, self.idx, safe_str(symbol), ctypes.c_longlong(since), ctypes.c_longlong(limit), ctypes.byref(r_len), ctypes.byref(buf_ptr))
@@ -1422,7 +1426,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "ea0c3a2ff52fe179546c3bd384452b26" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "2df15a2ebab9de388fd876ce12e5c2f1" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
