@@ -100,6 +100,7 @@ def getCacheDir():
     return tmpCache
 
 def httpGet(url):
+    print(url)
     req = urllib2.Request(url)
     req.add_header('Accept-Encoding', 'gzip, deflate')
     resp = urllib2.urlopen(req)
@@ -1426,7 +1427,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "2df15a2ebab9de388fd876ce12e5c2f1" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "4968fee289f3e793110db9f76d6abc0c" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1604,6 +1605,9 @@ class VCtx(object):
     def g_HttpQuery(self, *args):
         return 'dummy'
 
+    def g_HttpQuery_Go(self, *args):
+        return AsyncRet('dummy')
+
     def g_JSONParse(self, s):
         return json.loads(s)
 
@@ -1632,7 +1636,7 @@ class VCtx(object):
         return True
 
     def g_Mail_Go(self, *args):
-        return True
+        return AsyncRet(True)
 
     def g_GetCommand(self):
         return ''
