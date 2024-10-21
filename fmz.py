@@ -562,6 +562,12 @@ class _TICKER(_CSTRUCT):
             ("data_size", ctypes.c_uint),
             ]
 
+class _FUNDING(_CSTRUCT):
+    _fields_ = [("Time", ctypes.c_ulonglong), 
+            ("Rate", ctypes.c_double), 
+            ("Period", ctypes.c_uint), 
+            ("Symbol", ctypes.c_char * 31)]
+
 class _RECORD(_CSTRUCT):
     _fields_ = [("Time", ctypes.c_ulonglong), 
             ("Open", ctypes.c_double), 
@@ -778,6 +784,24 @@ class Exchange:
         ret = self.lib.api_Exchange_GetTicker(self.ctx, self.idx, safe_str(symbol), ctypes.byref(r))
         if ret == API_ERR_SUCCESS:
             return r.toObj()
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
+
+    def GetFundings(self, symbol=''):
+        r_len = ctypes.c_uint(0)
+        buf_ptr = ctypes.c_void_p()
+        ret = self.lib.api_Exchange_GetFundings(self.ctx, self.idx, safe_str(symbol), ctypes.byref(r_len), ctypes.byref(buf_ptr))
+
+        if ret == API_ERR_SUCCESS:
+            n = r_len.value
+            eles = []
+            if n > 0:
+                group_array = (_FUNDING * n).from_address(buf_ptr.value)
+                for i in range(0, n):
+                    eles.append(group_array[i].toObj())
+                self.lib.api_free(buf_ptr)
+            return eles
         elif ret == API_ERR_FAILED:
             return None
         EOF()
@@ -1427,7 +1451,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "4968fee289f3e793110db9f76d6abc0c" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "9d352eb2a1590a560bcb54111e5c9c9e" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
