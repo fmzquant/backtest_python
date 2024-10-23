@@ -565,7 +565,7 @@ class _TICKER(_CSTRUCT):
 class _FUNDING(_CSTRUCT):
     _fields_ = [("Time", ctypes.c_ulonglong), 
             ("Rate", ctypes.c_double), 
-            ("Period", ctypes.c_uint), 
+            ("Interval", ctypes.c_uint), 
             ("Symbol", ctypes.c_char * 31)]
 
 class _RECORD(_CSTRUCT):
