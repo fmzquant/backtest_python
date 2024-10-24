@@ -542,6 +542,11 @@ class _CSTRUCT(ctypes.Structure):
         for k, t in self._fields_:
             if k[0].isupper():
                 v = getattr(self, k)
+                if k == 'Info' and hasattr(v, 's_js'):
+                    if v.s_js_size > 0:
+                        v = json.loads(v.s_js[:v.s_js_size])
+                    else:
+                        v = None
                 if isinstance(v, bytes):
                     v = v.decode()
                 obj[k] = v
@@ -1453,7 +1458,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "bc7a3d091b1e7642c23723020c819218" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "cc7f7f0e687fb7317862170955d99a58" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
