@@ -547,6 +547,10 @@ class _CSTRUCT(ctypes.Structure):
                 obj[k] = v
         return dic2obj(obj)
 
+class _INFO(_CSTRUCT):
+    _fields_ = [("s_js", ctypes.c_char_p),
+            ("s_js_size", ctypes.c_uint)]
+
 class _TICKER(_CSTRUCT):
     _fields_ = [("Time", ctypes.c_ulonglong), 
             ("Symbol", ctypes.c_char * 31),
@@ -558,9 +562,7 @@ class _TICKER(_CSTRUCT):
             ("Last", ctypes.c_double), 
             ("Volume", ctypes.c_double),
             ("OpenInterest", ctypes.c_double),
-            ("data", ctypes.c_char_p),
-            ("data_size", ctypes.c_uint),
-            ]
+            ("Info", _INFO)]
 
 class _FUNDING(_CSTRUCT):
     _fields_ = [("Time", ctypes.c_ulonglong), 
@@ -748,7 +750,7 @@ class Exchange:
         r = _TICKER()
         ret = self.lib.api_Exchange_GetData(self.ctx, self.idx, ctypes.byref(r), safe_str(name), int(timeout), int(offset))
         if ret == API_ERR_SUCCESS:
-            return dic2obj({'Time': r.Time, 'Data': json.loads(r.data[:r.data_size]) if r.data_size > 0 else None})
+            return dic2obj({'Time': r.Time, 'Data': json.loads(r.Info.s_js[:r.Info.s_js_size]) if r.Info.s_js_size > 0 else None})
         elif ret == API_ERR_FAILED:
             return None
         EOF()
