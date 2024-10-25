@@ -1458,7 +1458,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "cc7f7f0e687fb7317862170955d99a58" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "d5e78db481539016d52bdbadf7adb966" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1481,7 +1481,7 @@ class VCtx(object):
             print("load from debug mode", loader)
         lib = ctypes.CDLL(os.path.abspath(loader))
         lib.api_backtest.restype = ctypes.c_void_p
-        ctx = ctypes.c_void_p(lib.api_backtest(safe_str(json.dumps(task)), self.httpGetPtr, self.progessCallbackPtr))
+        ctx = ctypes.c_void_p(lib.api_backtest(safe_str(json.dumps(task)), self.httpGetPtr, self.progessCallbackPtr, None))
         if not ctx:
             raise 'Initialize backtest engine error'
         self.ctx = ctx
