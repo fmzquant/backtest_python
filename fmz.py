@@ -860,7 +860,7 @@ class Exchange:
                 for i in range(0, n):
                     eles.append(group_array[i].toObj())
                 self.lib.api_free(buf_ptr)
-            k = '%s/%s/%d' % (self.currency, self.ct, period)
+            k = '%s/%s/%s/%d' % (self.currency, symbol, self.ct, period)
             c = self.records_cache.get(k, None)
             if c is None or len(c) == 0:
                 if len(eles) > self.maxBarLen:
