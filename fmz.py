@@ -100,7 +100,6 @@ def getCacheDir():
     return tmpCache
 
 def httpGet(url):
-    print(url)
     req = urllib2.Request(url)
     req.add_header('Accept-Encoding', 'gzip, deflate')
     resp = urllib2.urlopen(req)
@@ -1458,7 +1457,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "d5e78db481539016d52bdbadf7adb966" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "5d35878e682902f8bfd3ac32108d6788" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
