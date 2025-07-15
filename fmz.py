@@ -100,13 +100,24 @@ def getCacheDir():
     return tmpCache
 
 def httpGet(url):
-    req = urllib2.Request(url)
-    req.add_header('Accept-Encoding', 'gzip, deflate')
-    resp = urllib2.urlopen(req)
-    data = resp.read()
-    if resp.info().get('Content-Encoding') == 'gzip':
-        data = zlib.decompress(data, 16+zlib.MAX_WBITS)
-    return data
+    try:
+        req = urllib2.Request(url)
+        req.add_header('Accept-Encoding', 'gzip, deflate')
+        resp = urllib2.urlopen(req)
+        data = resp.read()
+        if resp.info().get('Content-Encoding') == 'gzip':
+            data = zlib.decompress(data, 16+zlib.MAX_WBITS)
+        return data
+    except urllib2.HTTPError as e:
+        headers = dict(e.info())
+        error_body = e.read()
+        if e.info().get('Content-Encoding') == 'gzip':
+            try:
+                error_body = zlib.decompress(error_body, 16+zlib.MAX_WBITS)
+            except:
+                pass
+        print("urllib2.HTTPError - Code: %s, URL: %s, Headers: %s, Body: %s" % (e.code, e.url, headers, error_body))
+        raise
 
 class Std:
     @staticmethod
@@ -1457,7 +1468,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "5d35878e682902f8bfd3ac32108d6788" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "732fb172c93649600100fd4614ac6626" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
