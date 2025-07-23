@@ -1468,7 +1468,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "9ecf04aa8459a20183987d03afe47627" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "7b23b84e6c9d674ff75ee9149f98f490" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1687,6 +1687,12 @@ class VCtx(object):
 
     def g_SetErrorFilter(self, s):
         pass
+
+    def g_SetChannelData(self, s):
+        pass
+
+    def g_GetChannelData(self, s):
+        return ''
 
     def g_GetOS(self):
         return self.os
