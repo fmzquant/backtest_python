@@ -1468,7 +1468,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "9b260c082670ed9bba9d36c33290ee63" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "de6790233bdb32d59d7fd1155a18219b" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1697,8 +1697,9 @@ class VCtx(object):
     def g_GetOS(self):
         return self.os
 
-    def g_Version(self):
-        return '3.3'
+    def g_Version(self, detail=False):
+        self.lib.api_Version.restype = ctypes.c_char_p
+        return self.lib.api_Version(detail).decode('utf-8')
 
     def g_IsVirtual(self):
         return True
