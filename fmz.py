@@ -557,6 +557,13 @@ class _CSTRUCT(ctypes.Structure):
                         v = json.loads(v.s_js[:v.s_js_size])
                     else:
                         v = None
+                elif k == 'Condition' and hasattr(v, 'ConditionType'):
+                    if v.ConditionType == -1:
+                        continue
+                    else:
+                        v = v.toObj()
+                elif k == 'ContractType' and len(v) == 0:
+                    continue
                 if isinstance(v, bytes):
                     v = v.decode()
                 obj[k] = v
@@ -610,6 +617,15 @@ class _ASSET(_CSTRUCT):
             ("Amount", ctypes.c_double), 
             ("FrozenAmount", ctypes.c_double)]
 
+class _ORDER_CONDITION(_CSTRUCT):
+    _fields_ = [
+        ("ConditionType", ctypes.c_int),
+        ("TpTriggerPrice", ctypes.c_double),
+        ("TpOrderPrice", ctypes.c_double),
+        ("SlTriggerPrice", ctypes.c_double),
+        ("SlOrderPrice", ctypes.c_double),
+    ]
+
 class _ORDER(_CSTRUCT):
     _fields_ = [("Id", ctypes.c_ulonglong), 
             ("Time", ctypes.c_ulonglong),
@@ -621,7 +637,8 @@ class _ORDER(_CSTRUCT):
             ("Offset", ctypes.c_uint), 
             ("Status", ctypes.c_uint), 
             ("Symbol", ctypes.c_char * 31),
-            ("ContractType", ctypes.c_char * 31)]
+            ("ContractType", ctypes.c_char * 31),
+            ("Condition", _ORDER_CONDITION)]
 
 class _TRADE(_CSTRUCT):
     _fields_ = [("Id", ctypes.c_ulonglong), 
@@ -987,12 +1004,6 @@ class Exchange:
             return None
         EOF()
 
-    def Log(self, orderType, price, amount=0, *extra):
-        ret = self.lib.api_Exchange_Log(self.ctx, self.idx, ctypes.c_int(orderType), ctypes.c_double(price), ctypes.c_double(amount), JoinArgs(extra))
-        if orderType == 2:
-            return bool(ret)
-        if ret > 0:
-            return int(ret)
 
     def GetOrder(self, orderId):
         r = _ORDER()
@@ -1004,11 +1015,82 @@ class Exchange:
         EOF()
 
     def CancelOrder(self, orderId, *extra):
-        self.lib.api_Exchange_CancelOrder.restype = ctypes.c_bool
         ret = self.lib.api_Exchange_CancelOrder(self.ctx, self.idx, ctypes.c_int(orderId), JoinArgs(extra))
         if ret == API_ERR_EOF:
             EOF()
         return ret == API_ERR_SUCCESS
+
+    # condition orders
+    def CreateConditionOrder(self, symbol, side, amount, condition, *extra):
+        ret = self.lib.api_Exchange_CreateConditionOrder(self.ctx, self.idx, safe_str(symbol), safe_str(side), ctypes.c_double(amount), safe_str(json.dumps(condition)), JoinArgs(extra))
+        if ret > 0:
+            return int(ret)
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
+
+    def GetConditionOrders(self, symbol=''):
+        r_len = ctypes.c_uint(0)
+        buf_ptr = ctypes.c_void_p()
+        ret = self.lib.api_Exchange_GetConditionOrders(self.ctx, self.idx, safe_str(symbol), ctypes.byref(r_len), ctypes.byref(buf_ptr))
+
+        if ret == API_ERR_SUCCESS:
+            n = r_len.value
+            eles = []
+            if n > 0:
+                group_array = (_ORDER * n).from_address(buf_ptr.value)
+                for i in range(0, n):
+                    eles.append(group_array[i].toObj())
+                self.lib.api_free(buf_ptr)
+            return eles
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
+
+    def GetHistoryConditionOrders(self, symbol='', since=0, limit = 0):
+        if isinstance(symbol, int):
+            limit = since
+            since = symbol
+            symbol = ''
+        r_len = ctypes.c_uint(0)
+        buf_ptr = ctypes.c_void_p()
+        ret = self.lib.api_Exchange_GetHistoryConditionOrders(self.ctx, self.idx, safe_str(symbol), ctypes.c_longlong(since), ctypes.c_longlong(limit), ctypes.byref(r_len), ctypes.byref(buf_ptr))
+
+        if ret == API_ERR_SUCCESS:
+            n = r_len.value
+            eles = []
+            if n > 0:
+                group_array = (_ORDER * n).from_address(buf_ptr.value)
+                for i in range(0, n):
+                    eles.append(group_array[i].toObj())
+                self.lib.api_free(buf_ptr)
+            return eles
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
+
+
+    def GetConditionOrder(self, orderId):
+        r = _ORDER()
+        ret = self.lib.api_Exchange_GetConditionOrder(self.ctx, self.idx, ctypes.c_int(orderId), ctypes.byref(r))
+        if ret == API_ERR_SUCCESS:
+            return r.toObj()
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
+
+    def CancelConditionOrder(self, orderId, *extra):
+        ret = self.lib.api_Exchange_CancelConditionOrder(self.ctx, self.idx, ctypes.c_int(orderId), JoinArgs(extra))
+        if ret == API_ERR_EOF:
+            EOF()
+        return ret == API_ERR_SUCCESS
+    
+    def Log(self, orderType, price, amount=0, *extra):
+        ret = self.lib.api_Exchange_Log(self.ctx, self.idx, ctypes.c_int(orderType), ctypes.c_double(price), ctypes.c_double(amount), JoinArgs(extra))
+        if orderType == 2:
+            return bool(ret)
+        if ret > 0:
+            return int(ret)
 
     def GetContractType(self):
         return self.ct
@@ -1469,7 +1551,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "9f1e38755113683baaf4b0e7ea803316" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "f153d5c3992730ebf04d568845e66731" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1530,6 +1612,11 @@ class VCtx(object):
         gApis["ORDER_TYPE_SELL"] = 1
         gApis["ORDER_OFFSET_OPEN"] = 0
         gApis["ORDER_OFFSET_CLOSE"] = 1
+
+        gApis["ORDER_CONDITION_TYPE_OCO"] = 0
+        gApis["ORDER_CONDITION_TYPE_TP"] = 1
+        gApis["ORDER_CONDITION_TYPE_SL"] = 2
+        gApis["ORDER_CONDITION_TYPE_GENERIC"] = 3
 
         gApis["PD_LONG"] = 0
         gApis["PD_SHORT"] = 1
