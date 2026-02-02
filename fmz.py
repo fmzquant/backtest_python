@@ -964,6 +964,14 @@ class Exchange:
             return None
         EOF()
 
+    def ModifyOrder(self, orderId, side, price, amount=None, *extra):
+        ret = self.lib.api_Exchange_ModifyOrder(self.ctx, self.idx, ctypes.c_int(orderId), safe_str(side), ctypes.c_double(price), ctypes.c_double(amount), JoinArgs(extra))
+        if ret > 0:
+            return int(ret)
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
+
     def GetOrders(self, symbol=''):
         r_len = ctypes.c_uint(0)
         buf_ptr = ctypes.c_void_p()
@@ -1023,6 +1031,14 @@ class Exchange:
     # condition orders
     def CreateConditionOrder(self, symbol, side, amount, condition, *extra):
         ret = self.lib.api_Exchange_CreateConditionOrder(self.ctx, self.idx, safe_str(symbol), safe_str(side), ctypes.c_double(amount), safe_str(json.dumps(condition)), JoinArgs(extra))
+        if ret > 0:
+            return int(ret)
+        elif ret == API_ERR_FAILED:
+            return None
+        EOF()
+
+    def ModifyConditionOrder(self, orderId, side, amount, condition, *extra):
+        ret = self.lib.api_Exchange_ModifyConditionOrder(self.ctx, self.idx, ctypes.c_int(orderId), safe_str(side), ctypes.c_double(amount), safe_str(json.dumps(condition)), JoinArgs(extra))
         if ret > 0:
             return int(ret)
         elif ret == API_ERR_FAILED:
@@ -1551,7 +1567,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "b89d4e6d3b470e276dbba60e15cffb75" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "3b59ead2b344d32574314528b4559412" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
