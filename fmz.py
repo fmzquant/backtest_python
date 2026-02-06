@@ -501,7 +501,7 @@ class MyList(list):
         for item in self.__data:
             ret.append(item[attr])
         if HasTALib:
-            ret = numpy.array(ret)
+            ret = numpy.array(ret, dtype='float64')
         setattr(self, attr, ret)
         return ret
 
