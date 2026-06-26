@@ -1570,7 +1570,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if os.getenv("BOTVS_TASK_UUID") is None or "bd0c9e935b1cab82a1acb99104b8f1b2" in str(b):
+                if os.getenv("BOTVS_TASK_UUID") is None or "2b71c5411af9705ca7b93abc46849b9f" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
