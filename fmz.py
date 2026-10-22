@@ -790,9 +790,10 @@ class Exchange:
                     c[-1] = ele
                 elif t > preTime:
                     c.append(ele)
-                    if len(c) > self.maxBarLen:
-                        c.pop(0)
                     preTime = t
+            # SetMaxBarLen 改小后，已缓存的也按新长度截
+            if len(c) > self.maxBarLen:
+                del c[:len(c) - self.maxBarLen]
         r = MyList(self.records_cache[k])
         if limit > 0:
             r = MyList(r[-limit:])
@@ -857,10 +858,11 @@ class Exchange:
 
     def Log(self, orderType, price, amount=0, *extra):
         ret = self.api(b'Exchange_Log', self.idx, orderType, price, amount, _t(JoinArgs(extra)))
+        # 撤单返回 True；买卖返回虚拟订单号 V00001（V 加 5 位递增序号）
         if orderType == 2:
             return bool(ret)
         if ret > 0:
-            return int(ret)
+            return 'V%05d' % int(ret)
 
     def GetContractType(self):
         return self.ct
@@ -1300,7 +1302,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if taskUUID() is None or "1187625e4ea168617ad55ca7b505d15b" in str(b):
+                if taskUUID() is None or "b94bef2f80290c9a4b686338b3297b11" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
