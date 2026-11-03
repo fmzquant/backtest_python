@@ -591,6 +591,10 @@ def _t(v):
 _enc = json.JSONEncoder(separators=(',', ':'), allow_nan=False).encode
 _scan = json.decoder.JSONDecoder(object_hook=dic2obj).scan_once
 
+class StopError(EOFError, RuntimeError):
+    """回测结束或已终止（只支持实盘的接口被调用）：之后每个接口都再抛一次，接住了也走不下去"""
+
+
 class _Api(object):
     """The one entry into the engine (api_call, the same call table as JS): name + JSON args -> value.
     The engine only reports how a call ended; the exceptions are raised here: the end of the
@@ -609,7 +613,7 @@ class _Api(object):
         if c == 'r':
             return _scan(r, 1)[0]
         if c == 'x':
-            raise EOFError()
+            raise StopError()
         raise Exception(_scan(r, 1)[0])
 
 def _ticker(t):
@@ -623,6 +627,13 @@ def _keyed(v, keys):
         return None
     return [dic2obj([(k, d[k]) for k in keys if k in d]) for d in v]
 
+_TICKER_PX = ('High', 'Low', 'Open', 'Sell', 'Buy', 'Last')
+_PRICE_PX = ('Price',)
+_BAR_PX = ('Open', 'High', 'Low', 'Close')
+_ACCOUNT_PX = ('Balance', 'FrozenBalance')
+_ORDER_PX = ('Price', 'AvgPrice', 'Fee')
+_POSITION_PX = ('Price', 'Profit')
+
 _POSITION_KEYS = ('MarginLevel', 'Amount', 'FrozenAmount', 'Price', 'Profit', 'Margin', 'Type', 'Symbol', 'ContractType')
 
 def _positions(v):
@@ -635,6 +646,198 @@ def _positions(v):
 
 def _order_id(r):
     return int(r) if r is not None and r > 0 else None
+
+def _ctx_objify(v):
+    """引擎 JSON → 带属性访问的 dict（`b.bids` 与 `b["bids"]` 都能用）"""
+    if isinstance(v, dict) and not isinstance(v, dic2obj):
+        return dic2obj((k, _ctx_objify(x)) for k, x in v.items())
+    if isinstance(v, list):
+        return [_ctx_objify(x) for x in v]
+    return v
+
+
+class Subscription(object):
+    """ctx.subscribe 的返回值：订阅身份（只读）加 book / positions / balances / unsubscribe，与实盘相同"""
+
+    __slots__ = ("id", "ex", "channel", "symbol", "depth", "interval", "group", "_ctx", "_active")
+
+    def __init__(self, ctx, info):
+        for k in ("id", "ex", "channel", "symbol", "depth", "interval", "group"):
+            object.__setattr__(self, k, info.get(k))
+        object.__setattr__(self, "_ctx", ctx)
+        object.__setattr__(self, "_active", True)
+
+    def __setattr__(self, name, value):
+        raise AttributeError("Subscription attributes are read-only")
+
+    def __repr__(self):
+        return "Subscription(%s)" % json.dumps(self.info(), sort_keys=True)
+
+    def info(self):
+        return {"id": self.id, "ex": self.ex, "channel": self.channel, "symbol": self.symbol,
+                "depth": self.depth, "interval": self.interval, "group": self.group}
+
+    def _alive(self, what, channel):
+        if self.channel != channel:
+            raise Exception("%s: subscription %s is a %s subscription, not %s" % (what, self.id, self.channel, channel))
+        if not self._active:
+            raise Exception("%s: subscription %s was unsubscribed" % (what, self.id))
+
+    def book(self, n=None):
+        self._alive("book", "depth")
+        return self._ctx._book(self.id, self.depth or 5 if n is None else n)
+
+    def positions(self):
+        self._alive("positions", "private")
+        return _ctx_objify(self._ctx._value("positions", {"stream": self.id}))
+
+    def balances(self):
+        self._alive("balances", "private")
+        return _ctx_objify(self._ctx._value("balances", {"stream": self.id}))
+
+    def unsubscribe(self):
+        if not self._active:
+            return
+        self._ctx._text("unsubscribe", {"stream": self.id})
+        object.__setattr__(self, "_active", False)
+
+
+class SubscriptionList(list):
+    def unsubscribe(self):
+        for s in self:
+            s.unsubscribe()
+
+
+class CtxRecord(dic2obj):
+    pass
+
+
+# 事件的 book() 读簿要经 ctx（dic2obj 的属性都映射到键上，不能把 ctx 存在事件里）
+_CTX_OF_EVENT = [None]
+
+
+class CtxEvent(dic2obj):
+    def book(self, n=None):
+        if self.get("kind") != "depth":
+            raise Exception("book: event of kind %s is not a depth event" % self.get("kind"))
+        return _CTX_OF_EVENT[0]._book(self["stream"], self.get("depth") or 5 if n is None else n)
+
+
+def _ctx_stream_ids(v, out):
+    if isinstance(v, (list, tuple)):
+        for x in v:
+            _ctx_stream_ids(x, out)
+    elif isinstance(v, Subscription):
+        out.append(v.id)
+    elif isinstance(v, int) and not isinstance(v, bool):
+        out.append(v)
+    else:
+        raise TypeError("ctx.poll: streams must be Subscriptions, stream ids or (nested) lists of them, got %r" % (v,))
+    return out
+
+
+class CtxError(Exception):
+    """ctx.order / ctx.cancel / ctx.submit 的失败返回值（不抛，用 isinstance 判），与实盘相同"""
+
+
+class Ctx(object):
+    """策略里的全局 ctx（实现在引擎里，三种语言共用；这里只是 Python 的外形，与实盘相同）"""
+
+    STREAM_TIMER = 1
+    STREAM_STATUS = 2
+    STREAM_ORDER_ACK = 4
+
+    def __init__(self, api):
+        self._api = api
+        _CTX_OF_EVENT[0] = self
+
+    def _reply(self, method, args):
+        return self._api(b'Ctx_Call', method, args if isinstance(args, str) else json.dumps(args))
+
+    def _text(self, method, args=''):
+        r = self._reply(method, args)
+        if 'e' in r:
+            raise Exception(r['e'])
+        return r['r']
+
+    def _value(self, method, args=''):
+        t = self._text(method, args)
+        return None if t == '' else json.loads(t)
+
+    def _trade(self, method, args, shape=None):
+        r = self._reply(method, args)
+        if 'e' in r:
+            return CtxError(r['e'])
+        return shape(r['r']) if shape else r['r']
+
+    def _book(self, stream, n):
+        return _ctx_objify(self._value("book", {"stream": stream, "n": n}))
+
+    @staticmethod
+    def _exchange(ex):
+        """第一参 → (账户下标, 交易所对象此刻的统一符号 或 None)"""
+        get_index = getattr(ex, "GetIndex", None)
+        if callable(get_index):
+            pair = str(ex.GetCurrency() or "")
+            ct = str(ex.GetContractType() or "")
+            return get_index(), pair + "." + ct if pair and ct and "." not in pair else pair
+        if isinstance(ex, bool):
+            raise TypeError("exchange must be an account index or an exchange object")
+        if isinstance(ex, int):
+            return ex, None
+        if isinstance(ex, str) and ex.strip().isdigit():
+            return int(ex), None
+        raise TypeError("exchange must be an account index or an exchange object (with GetIndex())")
+
+    def subscribe(self, *args, **kwargs):
+        if kwargs or len(args) != 2:
+            raise TypeError("ctx.subscribe(exchange, opts) takes exactly two arguments; symbol goes "
+                            "inside opts: {channel, symbol, depth, interval, mode, buffer}")
+        ex, opts = args
+        if not isinstance(opts, dict):
+            raise TypeError("ctx.subscribe: opts must be a dict {channel, symbol, depth, interval, mode, buffer}")
+        index, current = self._exchange(ex)
+        channel = opts.get("channel") or "ticker"
+        o = dict(opts)
+        if current is not None and channel not in ("private", "tickers") and opts.get("symbol") in (None, ""):
+            o["symbol"] = current
+        if isinstance(o.get("symbol"), tuple):
+            o["symbol"] = list(o["symbol"])
+        o["exchange"] = index
+        info = self._value("subscribe", o)
+        if isinstance(info, list):
+            return SubscriptionList(Subscription(self, i) for i in info)
+        return Subscription(self, info)
+
+    def poll(self, streams=None, timeout_ms=None):
+        if isinstance(streams, dict):
+            raise TypeError("ctx.poll: the options form {streams, sources} is JavaScript-only; "
+                            "call ctx.poll(streams, timeout_ms)")
+        ids = [] if streams is None else _ctx_stream_ids(streams, [])
+        if timeout_ms is not None and (isinstance(timeout_ms, bool) or not isinstance(timeout_ms, int) or timeout_ms < 0):
+            raise TypeError("ctx.poll: timeout_ms must be a non-negative integer or None")
+        ev = self._api(b'Ctx_Poll', ids, timeout_ms)
+        return None if ev is None else CtxEvent(ev)
+
+    def connectors(self):
+        return _ctx_objify(self._value("connectors"))
+
+    def order(self, ex, symbol, side, px, qty, opts=None):
+        if opts is not None and not isinstance(opts, dict):
+            return CtxError("ctx.order: opts must be a dict or None")
+        index, _ = self._exchange(ex)
+        return self._trade("order", {"exchange": index, "symbol": symbol, "side": side, "px": px, "qty": qty, "opts": opts})
+
+    def cancel(self, ex, symbol, id):
+        index, _ = self._exchange(ex)
+        return self._trade("cancel", {"exchange": index, "symbol": symbol, "id": str(id)}, lambda _: None)
+
+    def submit(self, ex, req):
+        if not isinstance(req, dict):
+            return CtxError("ctx.submit: req must be a dict")
+        index, _ = self._exchange(ex)
+        return self._trade("submit", {"exchange": index, "req": req}, json.loads)
+
 
 class AsyncRet:
     routineId = 0
@@ -656,6 +859,7 @@ class Exchange:
     def __init__(self, api, idx, opt, cfg):
         self.api = api
         self.idx = idx
+        self.kv = {}
         self.opt = opt
         self.cfg = cfg
         self.name = cfg["Id"]
@@ -667,9 +871,71 @@ class Exchange:
         self.period = opt['Period']
         self.ct = ''
         self.records_cache = {}
+        self.rate = 1
+
+    def _rated(self, row, keys):
+        """SetRate 只在胶水换算，与实盘 glue（sdk/legacy/python/fmz.py）同规则：读到的计价币字段乘它"""
+        if row is not None and self.rate != 1:
+            for k in keys:
+                if k in row:
+                    row[k] *= self.rate
+        return row
+
+    def _rated_all(self, rows, keys):
+        if rows is not None and self.rate != 1:
+            for row in rows:
+                self._rated(row, keys)
+        return rows
+
+    def _real_price(self, price):
+        """下单价除回原币价；-1 市价原样。改单、条件单的价格不换算（同实盘）"""
+        if self.rate != 1 and isinstance(price, (int, float)) and price > 0:
+            return price / self.rate
+        return price
 
     def Go(self, method, *args):
         return AsyncRet(getattr(self, method)(*args))
+
+    def GetIndex(self):
+        return self.idx
+
+    def SetLabel(self, s):
+        v = "" if s is None else str(s)
+        if v:
+            self.label = v
+
+    def GetRawJSON(self):
+        return ""
+
+    def GetMeta(self, key):
+        r = self.api(b'Ctx_Call', 'exchangeMeta', json.dumps({"ex": self.idx, "key": key}))
+        return r.get('r', '')
+
+    def Encode(self, algo, inputFormat, outputFormat, data, keyFormat='', key=''):
+        r = self.api(b'Ctx_Call', 'encodeEx', json.dumps({"ex": self.idx, "algo": algo, "inFmt": inputFormat, "outFmt": outputFormat, "data": data, "keyFmt": keyFormat, "key": key}))
+        if 'e' in r:
+            raise Exception(r['e'])
+        return r['r']
+
+    def HMAC(self, algo, outputFormat, data, key=''):
+        return self.Encode(algo, 'raw', outputFormat, data, 'raw', key)
+
+    def G(self, *args):
+        """本交易所对象私有的进程内 KV：G() 回索引、G(None) 清空、G(k) 读、G(k, None) 删、G(k, v) 写"""
+        if not args:
+            return self.idx
+        k = args[0]
+        if k is None:
+            self.kv = {}
+            return None
+        k = str(k)
+        if len(args) == 1:
+            return self.kv.get(k)
+        if args[1] is None:
+            self.kv.pop(k, None)
+            return None
+        self.kv[k] = args[1]
+        return None
 
     def GetName(self):
         return self.name
@@ -696,7 +962,7 @@ class Exchange:
         self.api(b'Exchange_SetPrecision', self.idx, a, b)
 
     def GetRate(self):
-        return self.api(b'Exchange_GetRate', self.idx)
+        return self.rate
 
     def SetProxy(self, s):
         pass
@@ -718,10 +984,13 @@ class Exchange:
             return self.api(b'Exchange_SetCurrency', self.idx, s)
 
     def SetRate(self, rate=1.0):
-        return self.api(b'Exchange_SetRate', self.idx, rate)
+        old = self.rate
+        value = float(rate)
+        self.rate = value if value > 0 else 1
+        return old
 
     def GetTrades(self, symbol=''):
-        return _keyed(self.api(b'Exchange_GetTrades', self.idx, symbol), ('Id', 'Time', 'Price', 'Amount', 'Type'))
+        return _keyed(self._rated_all(self.api(b'Exchange_GetTrades', self.idx, symbol), _PRICE_PX), ('Id', 'Time', 'Price', 'Amount', 'Type'))
 
     def SetData(self, name, data):
         if not isinstance(data, string_types):
@@ -738,14 +1007,14 @@ class Exchange:
         v = self.api(b'Exchange_GetTickers', self.idx)
         if v is not None:
             for t in v:
-                _ticker(t)
+                _ticker(self._rated(t, _TICKER_PX))
         return v
 
     def GetMarkets(self):
         return json.loads(self.api(b'Exchange_GetMarkets', self.idx))
 
     def GetTicker(self, symbol=''):
-        return _ticker(self.api(b'Exchange_GetTicker', self.idx, symbol))
+        return _ticker(self._rated(self.api(b'Exchange_GetTicker', self.idx, symbol), _TICKER_PX))
 
     def GetFundings(self, symbol=''):
         return self.api(b'Exchange_GetFundings', self.idx, symbol)
@@ -757,13 +1026,14 @@ class Exchange:
             # 参数（时间戳、"CN"、品种）原样交给引擎；什么都没传时不补 0（0 会被当成时间戳）
             args = (v,) + more if (more or v != 0) else ()
             return dic2obj(self.api(b'Exchange_IO', self.idx, k, *args))
-        return self.api(b'Exchange_IO', self.idx, k, int(v))
+        # 字符串参数（"base" 的地址等）原样交给引擎
+        return self.api(b'Exchange_IO', self.idx, k, v if isinstance(v, str) else int(v))
 
     def GetDepth(self, symbol=''):
         d = self.api(b'Exchange_GetDepth', self.idx, symbol)
         if d is None:
             return None
-        orders, n = d['Orders'], d['AsksLen']
+        orders, n = self._rated_all(d['Orders'], _PRICE_PX), d['AsksLen']
         return dic2obj({'Asks': orders[:n], 'Bids': orders[n:n + d['BidsLen']]})
 
     def GetRecords(self, symbol='', period=-1, limit=0):
@@ -773,7 +1043,7 @@ class Exchange:
             symbol = ''
         if period == -1:
             period = int(self.period/1000)
-        eles = self.api(b'Exchange_GetRecords', self.idx, symbol, int(period))
+        eles = self._rated_all(self.api(b'Exchange_GetRecords', self.idx, symbol, int(period)), _BAR_PX)
         if eles is None:
             return None
         k = '%s/%s/%s/%d' % (self.currency, symbol, self.ct, period)
@@ -803,32 +1073,32 @@ class Exchange:
         return _keyed(self.api(b'Exchange_GetAssets', self.idx), ('Currency', 'Amount', 'FrozenAmount'))
 
     def GetAccount(self):
-        return self.api(b'Exchange_GetAccount', self.idx)
+        return self._rated(self.api(b'Exchange_GetAccount', self.idx), _ACCOUNT_PX)
 
     def Buy(self, price, amount=None, *extra):
-        return _order_id(self.api(b'Exchange_Buy', self.idx, price, amount, _t(JoinArgs(extra))))
+        return _order_id(self.api(b'Exchange_Buy', self.idx, self._real_price(price), amount, _t(JoinArgs(extra))))
 
     def Sell(self, price, amount=None, *extra):
-        return _order_id(self.api(b'Exchange_Sell', self.idx, price, amount, _t(JoinArgs(extra))))
+        return _order_id(self.api(b'Exchange_Sell', self.idx, self._real_price(price), amount, _t(JoinArgs(extra))))
 
     def CreateOrder(self, symbol, side, price, amount=None, *extra):
-        return _order_id(self.api(b'Exchange_CreateOrder', self.idx, symbol, side, price, amount, _t(JoinArgs(extra))))
+        return _order_id(self.api(b'Exchange_CreateOrder', self.idx, symbol, side, self._real_price(price), amount, _t(JoinArgs(extra))))
 
     def ModifyOrder(self, orderId, side, price, amount=None, *extra):
         return _order_id(self.api(b'Exchange_ModifyOrder', self.idx, orderId, side, price, amount, _t(JoinArgs(extra))))
 
     def GetOrders(self, symbol=''):
-        return self.api(b'Exchange_GetOrders', self.idx, symbol, False)
+        return self._rated_all(self.api(b'Exchange_GetOrders', self.idx, symbol, False), _ORDER_PX)
 
     def GetHistoryOrders(self, symbol='', since=0, limit = 0):
         if isinstance(symbol, int):
             limit = since
             since = symbol
             symbol = ''
-        return self.api(b'Exchange_GetHistoryOrders', self.idx, symbol, False, since, limit)
+        return self._rated_all(self.api(b'Exchange_GetHistoryOrders', self.idx, symbol, False, since, limit), _ORDER_PX)
 
     def GetOrder(self, orderId):
-        return self.api(b'Exchange_GetOrder', self.idx, orderId, False)
+        return self._rated(self.api(b'Exchange_GetOrder', self.idx, orderId, False), _ORDER_PX)
 
     def CancelOrder(self, orderId, *extra):
         return self.api(b'Exchange_CancelOrder', self.idx, orderId, False, _t(JoinArgs(extra))) is True
@@ -841,17 +1111,17 @@ class Exchange:
         return _order_id(self.api(b'Exchange_ModifyConditionOrder', self.idx, orderId, side, amount, json.dumps(condition), _t(JoinArgs(extra))))
 
     def GetConditionOrders(self, symbol=''):
-        return self.api(b'Exchange_GetOrders', self.idx, symbol, True)
+        return self._rated_all(self.api(b'Exchange_GetOrders', self.idx, symbol, True), _ORDER_PX)
 
     def GetHistoryConditionOrders(self, symbol='', since=0, limit = 0):
         if isinstance(symbol, int):
             limit = since
             since = symbol
             symbol = ''
-        return self.api(b'Exchange_GetHistoryOrders', self.idx, symbol, True, since, limit)
+        return self._rated_all(self.api(b'Exchange_GetHistoryOrders', self.idx, symbol, True, since, limit), _ORDER_PX)
 
     def GetConditionOrder(self, orderId):
-        return self.api(b'Exchange_GetOrder', self.idx, orderId, True)
+        return self._rated(self.api(b'Exchange_GetOrder', self.idx, orderId, True), _ORDER_PX)
 
     def CancelConditionOrder(self, orderId, *extra):
         return self.api(b'Exchange_CancelOrder', self.idx, orderId, True, _t(JoinArgs(extra))) is True
@@ -884,14 +1154,14 @@ class Exchange:
             symbol = ''
         return self.api(b'Exchange_SetMarginLevel', self.idx, symbol, level)
 
-    def SetDirection(self, direction):
+    def SetDirection(self, direction, hedgeFlag=None):
         return self.api(b'Exchange_SetDirection', self.idx, direction)
 
     def GetPositions(self, symbol=''):
-        return _positions(self.api(b'Exchange_GetPositions', self.idx, symbol))
+        return _positions(self._rated_all(self.api(b'Exchange_GetPositions', self.idx, symbol), _POSITION_PX))
 
-    def GetPosition(self):
-        return self.GetPositions()
+    def GetPosition(self, symbol=''):
+        return self.GetPositions(symbol)
 
 class Chart(object):
     def __init__(self, api, js):
@@ -1302,7 +1572,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if taskUUID() is None or "b94bef2f80290c9a4b686338b3297b11" in str(b):
+                if taskUUID() is None or "2baf3a4fc0053ca764d6b785acd977ac" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1353,10 +1623,18 @@ class VCtx(object):
         gApis['__name__'] = '__main__'
         gApis["TA"] = TAInstance(self._logTA)
         gApis['exchanges'] = exchanges
+        gApis['ctx'] = Ctx(self.api)
+        # 名字写死：混淆后 cls.__name__ 不是策略看到的名字
+        for name, cls in (('StopError', StopError), ('CtxError', CtxError), ('CtxEvent', CtxEvent), ('CtxRecord', CtxRecord),
+                          ('Subscription', Subscription), ('SubscriptionList', SubscriptionList)):
+            gApis[name] = cls
+        gApis.update(FUTURES_OP_SET_MARGIN=0, FUTURES_OP_SET_DIRECTION=1, FUTURES_OP_SET_CONTRACT_TYPE=2,
+                     FUTURES_OP_GET_POSITION=3, EXCHANGE_OP_IO_CONTROL=4, ORDER_TYPE_NONE=2)
         gApis['exchange'] = exchanges[0]
         gApis['ext'] = Templates()
         gApis['time'] = time
         gApis['null'] = None
+        gApis['NaN'] = None
         gApis['true'] = True
         gApis['false'] = False
         gApis["ORDER_STATE_PENDING"] = 0
@@ -1500,11 +1778,19 @@ class VCtx(object):
     def g_MD5(self, s):
         return md5.md5(safe_str(s)).hexdigest()
 
-    def g_HttpQuery(self, url, options=None):
+    def g_HttpQuery(self, url, options=None, cookies=None, headers=None, isReturnHeader=False):
         # 同 JS 回测：经数据服务转发（选项按 POST 交给平台）；debug 时返回 {StatusCode, Length, Body, Header}。
-        # 旧写法 HttpQuery(url, postData)：字符串是请求体，按 POST 发送
+        # 旧写法 HttpQuery(url, postData, cookies, headers, isReturnHeader)：字符串是请求体，按 POST 发送
         if isinstance(options, str) and options:
             options = {'method': 'POST', 'body': options}
+        if cookies or headers or isReturnHeader:
+            options = dict(options) if isinstance(options, dict) else {}
+            if cookies:
+                options['cookie'] = cookies
+            if headers:
+                options['headers'] = headers
+            if isReturnHeader:
+                options['debug'] = True
         ret = self.api(b'HttpQuery', url, json.dumps(options) if isinstance(options, dict) else '')
         if isinstance(options, dict) and options.get('debug'):
             obj = json.loads(ret)
@@ -1522,23 +1808,39 @@ class VCtx(object):
     def g_UUID(self):
         return uuid.uuid4().hex.upper()
 
-    def g_StrDecode(self, s, c='gbk'):
-        self.g_LogError("sandbox not support StrDecode")
+    def _encode(self, algo, inFmt, outFmt, data, keyFmt='', key=''):
+        r = self.api(b'Ctx_Call', 'encode', json.dumps({"algo": algo, "inFmt": inFmt, "outFmt": outFmt, "data": data, "keyFmt": keyFmt, "key": key}))
+        if 'e' in r:
+            raise Exception(r['e'])
+        return r['r']
+
+    def g_StrDecode(self, s, charset):
+        return self._encode('text.decoder.' + str(charset).lower(), 'latin1', 'string', s)
+
+    def g_Encode(self, algo, inputFormat, outputFormat, data, keyFormat='', key=''):
+        return self._encode(algo, inputFormat, outputFormat, data, keyFormat, key)
+
+    def g_HMAC(self, algo, outputFormat, data, key):
+        return self._encode(algo, 'raw', outputFormat, data, 'raw', key)
+
+    def g_Hash(self, algo, outputFormat, data):
+        return self._encode(algo, 'raw', outputFormat, data)
+
+    def g_SysInfo(self, attr=None):
+        r = json.loads(self.api(b'Ctx_Call', 'sysInfo', '')['r'])
+        return r if attr is None else r.get(str(attr))
 
     def g_EnableLogLocal(self, b):
         pass
 
     def g_Dial(self, *args):
-        self.g_LogError("sandbox not support Dial")
+        self.api(b'LiveOnly', 'Dial')
 
     def g_DBExec(self, *args):
-        self.g_LogError("sandbox not support DBExec")
-
-    def g_Encode(self, *args):
-        self.g_LogError("sandbox not support Encode")
+        self.api(b'LiveOnly', 'DBExec')
 
     def g_EventLoop(self, *args):
-        self.g_LogError("sandbox not support EventLoop")
+        self.api(b'LiveOnly', 'EventLoop')
 
     def g_Mail(self, smtpServer='', smtpUsername='', smtpPassword='', mailTo='', title='', body=''):
         # 同 JS 回测：经数据服务转发
@@ -1547,7 +1849,7 @@ class VCtx(object):
     def g_Mail_Go(self, *args):
         return AsyncRet(self.g_Mail(*args))
 
-    def g_GetCommand(self):
+    def g_GetCommand(self, timeout=-1):
         # 同实盘：没有交互命令时是 None
         return None
 
