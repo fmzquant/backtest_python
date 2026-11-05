@@ -817,7 +817,10 @@ class Ctx(object):
         if timeout_ms is not None and (isinstance(timeout_ms, bool) or not isinstance(timeout_ms, int) or timeout_ms < 0):
             raise TypeError("ctx.poll: timeout_ms must be a non-negative integer or None")
         ev = self._api(b'Ctx_Poll', ids, timeout_ms)
-        return None if ev is None else CtxEvent(ev)
+        if ev is None:
+            return None
+        ev["nano"] = int(ev["nano"])  # 事件 JSON 里是字符串（JS 放不下），Python 用 int
+        return CtxEvent(ev)
 
     def connectors(self):
         return _ctx_objify(self._value("connectors"))
@@ -859,6 +862,8 @@ class Exchange:
     def __init__(self, api, idx, opt, cfg):
         self.api = api
         self.idx = idx
+        self._markets = None
+        self._markets_version = None
         self.kv = {}
         self.opt = opt
         self.cfg = cfg
@@ -1011,7 +1016,12 @@ class Exchange:
         return v
 
     def GetMarkets(self):
-        return json.loads(self.api(b'Exchange_GetMarkets', self.idx))
+        # 引擎说表没变就不再取、不再解析；给策略的是副本，改了不影响下一次
+        v = self.api(b'Exchange_MarketsVersion', self.idx)
+        if v != self._markets_version:
+            self._markets = json.loads(self.api(b'Exchange_GetMarkets', self.idx))
+            self._markets_version = v
+        return {k: m.copy() for k, m in self._markets.items()}
 
     def GetTicker(self, symbol=''):
         return _ticker(self._rated(self.api(b'Exchange_GetTicker', self.idx, symbol), _TICKER_PX))
@@ -1572,7 +1582,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if taskUUID() is None or "2baf3a4fc0053ca764d6b785acd977ac" in str(b):
+                if taskUUID() is None or "9972467f8ddb75f81a695097e17b6d2c" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
