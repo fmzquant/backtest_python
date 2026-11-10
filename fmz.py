@@ -102,6 +102,61 @@ def taskUUID():
     # 回测宿主（集群容器、托管者）设的任务标记；旧版托管者设的是 BOTVS_TASK_UUID，全部升级后去掉
     return os.getenv("TASK_UUID") or os.getenv("BOTVS_TASK_UUID")
 
+# 下载缓存跨进程共用、按内容去重，但不能无限长：每个进程第一次用缓存目录时清一遍
+# 被杀时留下的临时文件、过期与超量的缓存（只动 http_ / plugin_ 开头的缓存和 .tmp，命中时会刷新修改时间）
+CACHE_TTL = 3 * 86400
+CACHE_MAX = 8 << 30
+_wallTime = time.time
+_swept = [False]
+
+def sweepCache(d):
+    if _swept[0]:
+        return
+    _swept[0] = True
+    try:
+        now = _wallTime()
+        files = []
+        for n in os.listdir(d):
+            p = os.path.join(d, n)
+            try:
+                st = os.stat(p)
+                if n.endswith('.tmp'):
+                    if now - st.st_mtime > 3600:
+                        os.remove(p)
+                elif n.startswith('http_') or n.startswith('plugin_'):
+                    if now - st.st_mtime > CACHE_TTL:
+                        os.remove(p)
+                    else:
+                        files.append((st.st_mtime, st.st_size, p))
+            except OSError:
+                pass
+        total = sum(f[1] for f in files)
+        if total > CACHE_MAX:
+            files.sort()
+            for _, size, p in files:
+                if total <= CACHE_MAX:
+                    break
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+                total -= size
+    except Exception:
+        pass
+
+def readCache(path):
+    """命中返回内容并刷新修改时间（别的进程清理时按最近使用保留）；没有或刚被清掉返回 None"""
+    try:
+        with open(path, 'rb') as f:
+            data = f.read()
+    except (IOError, OSError):
+        return None
+    try:
+        os.utime(path, None)
+    except OSError:
+        pass
+    return data
+
 def getCacheDir():
     tmpCache = tempfile.gettempdir()+ '/cache'
     if not os.path.exists(tmpCache):
@@ -109,6 +164,7 @@ def getCacheDir():
             os.mkdir(tmpCache)
         except:
             pass
+    sweepCache(tmpCache)
     return tmpCache
 
 def httpErrorBody(e):
@@ -122,13 +178,17 @@ def httpErrorBody(e):
                 pass
     return e._body
 
+# 取数的单次读写超时（秒）
+HTTP_TIMEOUT = 300
+
 def httpGet(url, body=None):
     try:
         req = urllib2.Request(url, data=body.encode('utf-8') if body is not None else None)
         req.add_header('Accept-Encoding', 'gzip, deflate')
         if body is not None:
             req.add_header('Content-Type', 'application/json')
-        resp = urllib2.urlopen(req)
+        # 连接半开（对端不再发数据也不断开）时别永远等下去：超时按网络错误交给引擎，与 Node 的 300 秒一致
+        resp = urllib2.urlopen(req, timeout=HTTP_TIMEOUT)
         data = resp.read()
         if resp.info().get('Content-Encoding') == 'gzip':
             data = zlib.decompress(data, 16+zlib.MAX_WBITS)
@@ -961,7 +1021,13 @@ class Exchange:
         return self.api(b'Exchange_GetUSDCNY', self.idx)
 
     def SetMaxBarLen(self, n):
-        self.maxBarLen = n
+        # 只收正数（Python 2 里数字与 None 比较不报错，缓存就再也不截了）
+        try:
+            n = int(n)
+        except (TypeError, ValueError):
+            return
+        if n > 0:
+            self.maxBarLen = n
 
     def SetPrecision(self, a, b):
         self.api(b'Exchange_SetPrecision', self.idx, a, b)
@@ -1516,6 +1582,8 @@ def parseTask(s):
             "Id": e['eid'],
             "Label": e['eid']
         }
+        if e.get('maintenanceMargin') is not None:
+            cfg["MaintenanceMargin"] = float(e['maintenanceMargin'])
         exchanges.append(cfg)
 
     options = {
@@ -1582,7 +1650,7 @@ class VCtx(object):
             js = os.path.join(tmpCache, crcFile)
             if os.path.exists(js):
                 b = open(js, 'rb').read()
-                if taskUUID() is None or "9972467f8ddb75f81a695097e17b6d2c" in str(b):
+                if taskUUID() is None or "2f19df0433eacbe02358fe97f139885a" in str(b):
                     hdic = json_loads(b)
             loader = os.path.join(tmpCache, soName)
             update = False
@@ -1704,9 +1772,9 @@ class VCtx(object):
         cacheFile = None if body is not None else getCacheDir()+'/http_'+md5.md5(path).hexdigest()
         data = None
         try:
-            if cacheFile and os.path.exists(cacheFile):
-                data = open(cacheFile, 'rb').read()
-            else:
+            if cacheFile:
+                data = readCache(cacheFile)
+            if data is None:
                 data = httpGet(url, body)
                 if cacheFile and len(data) > 0:
                     writeAtomic(cacheFile, data)
@@ -2090,6 +2158,8 @@ class VCtx(object):
         if self._joinResult is None:
             self.lib.api_Join.restype = ctypes.c_char_p
             r = self.lib.api_Join(self.ctx)
+            # 之后其它线程再调接口一律是回测已结束（StopError），不再拿已释放的上下文进引擎
+            self.api.ctx = None
             self.lib.api_Release(self.ctx)
             self._joinResult = r
         self.gs.release()
